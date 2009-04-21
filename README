@@ -1,0 +1,8 @@
+
+This is a javascript based implementation of a client side "presentation model", after the
+term coined by Martin Fowler to describe an object model for abstrating the functional behavior
+of the UI, from the elements/components of it (in our case, the DOM).
+
+This software is based on the Prototype and jQuery javascript libraries and is distributed 
+under a BSD style licence. 
+
