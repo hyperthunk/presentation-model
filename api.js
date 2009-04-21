@@ -28,6 +28,10 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 // basic outline of a presentation model in javascript
 
+/********************************************************************************************************
+ *      Prototype extensions and utilities
+ ********************************************************************************************************/
+
 Object.extend(Class, {
     create2: function() {
         var args = $A(arguments);
@@ -84,6 +88,13 @@ var Module = {
     }
 };
 
+var IllegalOperationException = Class.create({
+    initialize: function(msg) {
+        this.message = msg;
+    },
+    name: "IllegalOperationException"
+});
+
 var defaults = function(options, defaults) {
     return jQuery.extend(defaults, options || {});
 };
@@ -101,6 +112,10 @@ var template = function(html, syntax) {
 };
 
 var running_on_old_browser = function() { return false; };
+
+/********************************************************************************************************
+ *      Eventing - TODO: what is the pattern called again!?
+ ********************************************************************************************************/
 
 var Subscriber = Class.create2({
     initialize: function(name, callback) {
@@ -136,6 +151,10 @@ var EventSink = {
         return this;
     }
 };
+
+/********************************************************************************************************
+ *      HTTP/AJAX Utilities
+ ********************************************************************************************************/
 
 // TODO: use http response code to determine refresh behavior(s)
 
@@ -215,12 +234,9 @@ var HttpService = Class.create2(EventSink, {
     }
 });
 
-var IllegalOperationException = Class.create({
-    initialize: function(msg) {
-        this.message = msg;
-    },
-    name: "IllegalOperationException"
-});
+/********************************************************************************************************
+ *      UI/DOM Integration based on jQuery
+ ********************************************************************************************************/
 
 var Displayable = {
     renderTo: function(selector, template) {
@@ -228,7 +244,6 @@ var Displayable = {
             throw new IllegalOperationException("Cannot render a [Displayable object] without providing a selector.");
         }
         ws = jQuery(selector);
-        var interpolator = function(fn) { return function() { fn.apply(template, [this]); } };
         var html =
             (template == undefined)
                 ? this.toHTML()
@@ -238,9 +253,6 @@ var Displayable = {
         dom = jQuery(html);
         ws.html(dom);
         return dom;
-    },
-    renderAs: function(as) {
-        return jQuery(as).attr('id', this.getId());
     },
     toHTML: function() {
         return this.template.evaluate(this);
@@ -257,10 +269,73 @@ var Displayable = {
 var Bindable = Module.create(Displayable, {
     bindTo: function(selector) { this.binding = selector; return this; },
     display: function() {
-        this.bindings = $A(arguments || []);
+        this.bindings = Array.from(arguments);
+        return this;
     },
     render: function(template) {
         return this.renderTo(this.binding, template);
+    },
+    renderAs: function(options) {
+        if (Object.isString(options)) {
+            // TODO: render the fields too
+            return jQuery(options).attr('id', this.getId());
+        }
+        var opts = $H(options).update({ object: '<div/>' });
+        var syntax = opts.get('syntax');  //undefined is ok as it is just ignored when compiling them
+        var handlers = [];
+        var self = this;
+        ['container', 'field', 'object'].inject(handlers, function(found, e) {
+            var option = opts.get(e);
+            if (!Object.isUndefined(option)) {
+                found.push({
+                    evaluate: function(obj) {
+                        var data = $H(obj);
+                        if (data.keys().include('container')) {
+                            return jQuery(option).attr('id', data.get('id'));
+                        } else {
+                            //just assume it again!
+                            var dom = jQuery(option).attr('id', "#{id}-#{name}".interpolate({
+                                id:   data.get('id'),
+                                name: data.get('name')
+                            })).text(data.get('value'));
+                            if (['input', 'option'].include(dom.tagName)) {
+                                dom.val(data.get('value'));
+                            }
+                            return dom;
+                        }
+                    }
+                });
+            } else {
+                option = opts.get('#{item}-template', { item: e });
+                if (Object.isUndefined(option)) {
+                    throw new IllegalOperationException("No literal or template supplied for #{item}", { item: e });
+                }
+                if (Object.isString(option)) {
+                    found.push(template(option, syntax));
+                } else {
+                    found.push(option);
+                }
+            }
+            return found;
+        });
+        var container_template = handlers.shift();
+        var field_template = handlers.shift();
+        // TODO: add support for object-template
+        var innerHtml = this.bindings.collect(function(binding) {
+            // TODO: add support for nested Resource classes using object-template
+            return jQuery(field_template.evaluate({
+                id: self.getId(),
+                name: binding,
+                value: self[binding]
+            }));
+        });
+        var container = jQuery(container_template.evaluate({ container: true, id: this.getId() }));
+        if (innerHtml.empty()) {
+            return container
+        } else {
+            jQuery(innerHtml).appendTo(container);
+            return container;
+        }
     },
     ui: function() {
         return jQuery(this.selector());
@@ -272,15 +347,20 @@ var Bindable = Module.create(Displayable, {
     update: function() {
         var self = this;
         var bindings = this.bindings || $A(arguments);
+        // TODO: add support for rebinding nested relations
         bindings.each(function(f) {
             binding = jQuery('##{id}-#{field}'.interpolate({
-                field: f, id:
-                self.getId()
+                field: f,
+                id:    self.getId()
             }), self.selector());
             self[f] = binding.val();
         });
     }
 });
+
+/********************************************************************************************************
+ *      RESTful Resource representation and utilities
+ ********************************************************************************************************/
 
 var ResourceConfigurationException = function(msg) {
     return new Error(msg);
@@ -309,6 +389,7 @@ var Resource = Module.create(Bindable, EventSink, {
         return json.toObject();
     },
     hydrate: function(json) {
+        // TODO: add support for nested Resource objects - maybe an override is required?
         var data = $H().merge(json);
         if (data.get('__x_created_locally') == undefined) {
             data.set('__x_created_locally', true);
@@ -357,23 +438,3 @@ var create_resource = function(base_uri, attrs) {
     clazz.service = new HttpService(base_uri, clazz);
     return clazz;
 };
-
-/*
-
-// create DistributionList representation
-var DistributionList = Class.create(Resource, {
-    initialize: function(json) {
-        //NB: for some reason, Prototype's $super syntax isn't working here!?
-        Resource.initialize.apply(this, [json]);
-        this.template =
-            template("<div id='<%= pk %>'><%= name %></div>");
-    }
-});
-
-// give DistributionList an http service
-DistributionList.service = new HttpService('/mailinglist', DistributionList);
-
-// make MailingList into a displayable object
-mixin(DistributionList, Bindable);
-
-*/

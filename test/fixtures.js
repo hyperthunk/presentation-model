@@ -115,12 +115,26 @@ var temp = function ($) {
 
         test('renderAs function should default to an empty element with the id set correctly', function() {
             var id = '1928374';
+            var subject = new TestResource({ pk: id });
+
+            var content = subject.renderAs('<div/>').appendTo('#target1');
+            equals(jQuery('#target1').html(), '<div id="1928374"></div>');
+        });
+
+        test('renderAs function should create contain and fields using supplied templates', function() {
+            var id = '12345';
             var name = "DWORD Smith";
             var age = 'Old as the hills';
             var subject = new TestResource({ pk: id, name: name, age: age });
 
-            var content = subject.renderAs('<div/>').appendTo('#target1');
-            equals(jQuery('#target1').html(), '<div id="1928374"></div>');
+            var content = subject
+                .display('name', 'age')
+                .renderAs({
+                    container: '<ul/>',
+                    field:     '<li/>'
+                }).appendTo('#target1');
+            equals(jQuery('#target1').html(),
+                '<ul id="12345"><li id="12345-name">DWORD Smith</li><li id="12345-age">Old as the hills</li></ul>');
         });
 
         /********************************************************************************************************
