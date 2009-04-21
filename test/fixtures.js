@@ -153,6 +153,44 @@ var temp = function ($) {
                 '<ul id="12345"><li id="12345-name">DWORD Smith</li><li id="12345-age">Old as the hills</li></ul>');
         });
 
+        test('renderAs function should render templates using custom syntax when supplied', function() {
+            var id = '9999';
+            var name = "Joe Smith";
+            var age = '42';
+            var subject = new TestResource({ pk: id, name: name, age: age });
+
+            var content = subject
+                .display('name', 'age')
+                .renderAs({
+                    syntax:             tags_syntax,
+                    container:          '<div class="green-border negated-lens"/>',
+                    field_template:     '<div>' +
+                                            '<label for="<%= id %>-<%= name %>"><%= name %></label>' +
+                                            '<input id="<%= id %>-<%= name %>" value="<%= value %>"></input>' +
+                                        '</div>'
+                }).appendTo('#target4');
+            equals(jQuery('#target4 div#9999 input#9999-name').val(), name);
+            equals(jQuery('#target4 div#9999 input#9999-age').val(), age);
+            equals(jQuery('div#9999 label').attr('for'), '9999-name');
+        });
+
+        test("renderAs function should return a wrapped set of the new content", function() {
+            var selector = '#testBinding5';
+            var id = 'bob';
+            var subject = new TestResource({ pk: id, uri: 'foo', name: 'Bob Dillan' });
+            subject.display('name').renderAs({
+                container_template: '<form id="#{id}" method="POST" action="#{uri}></form>',
+                field:              '<input/>'
+            }).appendTo(selector).find('input#bob-name').bind('changed', function() {
+                subject.name = $(this).val();
+                return false;
+            });
+
+            var update = "Aerosmith";
+            $("input#bob-name").val(update).trigger('changed');
+            equals(subject.name, update, "resetting object property based on event handler returned from renderTo");
+        });
+
         /********************************************************************************************************
          *      Bindable Unit Tests
          ********************************************************************************************************/
