@@ -132,8 +132,24 @@ var temp = function ($) {
                 .renderAs({
                     container: '<ul/>',
                     field:     '<li/>'
-                }).appendTo('#target1');
-            equals(jQuery('#target1').html(),
+                }).appendTo('#target2');
+            equals(jQuery('#target2').html(),
+                '<ul id="12345"><li id="12345-name">DWORD Smith</li><li id="12345-age">Old as the hills</li></ul>');
+        });
+
+        test('renderAs function should render templates for both container and fields', function() {
+            var id = '12345';
+            var name = "DWORD Smith";
+            var age = 'Old as the hills';
+            var subject = new TestResource({ pk: id, name: name, age: age });
+
+            var content = subject
+                .display('name', 'age')
+                .renderAs({
+                    container_template: '<ul id="#{id}"></ul>',
+                    field_template:     '<li id="#{id}-#{name}">#{value}</li>'
+                }).appendTo('#target3');
+            equals(jQuery('#target3').html(),
                 '<ul id="12345"><li id="12345-name">DWORD Smith</li><li id="12345-age">Old as the hills</li></ul>');
         });
 

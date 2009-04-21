@@ -281,6 +281,7 @@ var Bindable = Module.create(Displayable, {
             return jQuery(options).attr('id', this.getId());
         }
         var opts = $H(options).update({ object: '<div/>' });
+        opts.keys().each(function(key) { opts.set(key.dasherize, opts.get(key)); });
         var syntax = opts.get('syntax');  //undefined is ok as it is just ignored when compiling them
         var handlers = [];
         var self = this;
@@ -306,9 +307,9 @@ var Bindable = Module.create(Displayable, {
                     }
                 });
             } else {
-                option = opts.get('#{item}-template', { item: e });
+                option = opts.get('#{item}_template'.interpolate({ item: e }));
                 if (Object.isUndefined(option)) {
-                    throw new IllegalOperationException("No literal or template supplied for #{item}", { item: e });
+                    throw new IllegalOperationException("No literal or template supplied for #{item}".interpolate({ item: e }));
                 }
                 if (Object.isString(option)) {
                     found.push(template(option, syntax));
