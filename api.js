@@ -295,10 +295,10 @@ var Displayable = {
                 id:         self.getId(),
                 name:       binding,
                 value:      self[binding],
-                container:  this
+                container:  self 
             }));
         });
-        var container = jQuery(container_template.evaluate({ id: this.getId() }));
+        var container = jQuery(container_template.evaluate({ id: this.getId(), context: this }));
         if (innerHtml.empty()) {
             return container
         } else {
@@ -348,7 +348,7 @@ var Bindable = Module.create(Displayable, {
     },
     update: function() {
         var self = this;
-        var bindings = this.bindings || $A(arguments);
+        var bindings = this.display_fields || Array.from(arguments); 
         // TODO: add support for rebinding nested relations
         bindings.each(function(f) {
             binding = jQuery('##{id}-#{field}'.interpolate({
@@ -359,6 +359,34 @@ var Bindable = Module.create(Displayable, {
                 self[f] = binding.val();
             }
         });
+    },
+    refreshUI: function() {
+        var self = this;
+        var bindings = this.display_fields || Array.from(arguments);
+        bindings.collect(function(f) {
+            var field = self.fieldSelector(f); 
+            binding = jQuery(field, self.container());
+            if (binding.length > 0) {
+                binding.data('fieldname', f); 
+                return binding;
+            } else { return null; }
+        }).compact().each(function(binding) {
+            // TODO: verify that you *really* want to do this before continuing - there are other ways
+            binding.val(self[binding.data('fieldname')]);  
+        });
+    },
+    fieldSelector: function(field) {
+        return '##{id}-#{field}'.interpolate({
+            field: field,
+            id:    this.getId()
+        });
+    },
+    ui: function(attribute) {
+        if (attribute != undefined) {
+            return jQuery(this.fieldSelector(attribute));
+        } else {
+
+        }
     }
 });
 

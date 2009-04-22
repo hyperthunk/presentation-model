@@ -235,10 +235,25 @@ var temp = function ($) {
             equals(subject.name, 'foobar');
         });
 
-        /*test('refresh should silently ignore you if no binding was specified', function() {
+        test('refresh should silently ignore you if no binding was specified', function() {
             var subject = new TestResource();
-            subject.refresh();
-        });*/
+            subject.refreshUI();
+        });
+
+        test('refresh should update bound dom elements when a binding has taken place', function() {
+            var subject = new TestResource({ pk: 'subject197', name: 'Joe the Man', handle: 'jdm' });
+            subject.container('#test-container1');
+            subject.display('name', 'handle')
+                   .renderAs({ container: '<div/>', field: '<input/>' })
+                   .appendTo('#test-container1');
+
+            subject.name = 'Darth Vader';
+            subject.handle = 'ManNamedSue';
+
+            subject.refreshUI();
+            equals(subject.ui('name').val(), subject.name);
+            equals(subject.ui('handle').val(), subject.handle);
+        });
 
         /********************************************************************************************************
          *      Abstract Resource Unit Tests

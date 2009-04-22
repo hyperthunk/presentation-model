@@ -1,4 +1,9 @@
 .coverage
+jquery.min.js
+prototype.js
+jqUnit.js
+jqMock.js
+*.swp
 NOTES
 *.kpf
 *.bak
