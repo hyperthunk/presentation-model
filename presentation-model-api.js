@@ -295,7 +295,7 @@ var Displayable = {
                 id:         self.getId(),
                 name:       binding,
                 value:      self[binding],
-                container:  self 
+                container:  self
             }));
         });
         var container = jQuery(container_template.evaluate({ id: this.getId(), context: this }));
@@ -348,32 +348,29 @@ var Bindable = Module.create(Displayable, {
     },
     update: function() {
         var self = this;
-        var bindings = this.display_fields || Array.from(arguments); 
-        // TODO: add support for rebinding nested relations
-        bindings.each(function(f) {
-            binding = jQuery('##{id}-#{field}'.interpolate({
-                field: f,
-                id:    self.getId()
-            }), self.selector());
-            if (binding.length > 0) {
-                self[f] = binding.val();
-            }
+        var bindings = this.display_fields || Array.from(arguments);
+        this.eachBinding(bindings, function(binding) {
+            self[binding.data('fieldname')] = binding.val();
         });
     },
     refreshUI: function() {
         var self = this;
         var bindings = this.display_fields || Array.from(arguments);
+        this.eachBinding(bindings, function(binding) {
+            binding.val(self[binding.data('fieldname')]);
+        });
+    },
+    eachBinding: function(bindings, op) {
+        //NB: op is only applied to bindings that actually exist!
+        var self = this;
         bindings.collect(function(f) {
-            var field = self.fieldSelector(f); 
+            var field = self.fieldSelector(f);
             binding = jQuery(field, self.container());
             if (binding.length > 0) {
-                binding.data('fieldname', f); 
+                binding.data('fieldname', f);
                 return binding;
             } else { return null; }
-        }).compact().each(function(binding) {
-            // TODO: verify that you *really* want to do this before continuing - there are other ways
-            binding.val(self[binding.data('fieldname')]);  
-        });
+        }).compact().each(op);
     },
     fieldSelector: function(field) {
         return '##{id}-#{field}'.interpolate({
@@ -385,7 +382,7 @@ var Bindable = Module.create(Displayable, {
         if (attribute != undefined) {
             return jQuery(this.fieldSelector(attribute));
         } else {
-
+            return this.container();
         }
     }
 });
