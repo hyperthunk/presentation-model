@@ -239,6 +239,73 @@ var HttpService = Class.create2(EventSink, {
  ********************************************************************************************************/
 
 var Displayable = {
+    display: function() {
+        this.display_fields = Array.from(arguments);
+        return this;
+    },
+    renderAs: function(options) {
+        if (Object.isString(options)) {
+            // TODO: render the fields too?
+            return jQuery(options).attr('id', this.getId());
+        }
+        var opts = $H(options).update({ object: '<div/>' });
+        var syntax = opts.get('syntax');  //undefined is ok as it is just ignored when compiling them
+        var handlers = [];
+        var self = this;
+        ['container', 'field', 'object'].inject(handlers, function(found, e) {
+            var option = opts.get(e);
+            if (!Object.isUndefined(option)) {
+                found.push({
+                    evaluate: function(obj) {
+                        var data = $H(obj);
+                        if (!data.keys().include('container')) {
+                            return jQuery(option).attr('id', data.get('id'));
+                        } else {
+                            //just assume it again!
+                            var dom = jQuery(option).attr('id', "#{id}-#{name}".interpolate({
+                                id:   data.get('id'),
+                                name: data.get('name')
+                            })).text(data.get('value'));  //TODO: consider merging the container also!
+                            if (['input', 'option'].include(dom.tagName)) {
+                                dom.val(data.get('value'));
+                            }
+                            return dom;
+                        }
+                    }
+                });
+            } else {
+                option = opts.get('#{item}_template'.interpolate({ item: e }));
+                if (Object.isUndefined(option)) {
+                    throw new IllegalOperationException("No literal or template supplied for #{item}".interpolate({ item: e }));
+                }
+                if (Object.isString(option)) {
+                    found.push(template(option, syntax));
+                } else {
+                    found.push(option);
+                }
+            }
+            return found;
+        });
+        var container_template = handlers.shift();
+        var field_template = handlers.shift();
+        // TODO: add support for object-template
+        var innerHtml = this.display_fields.collect(function(binding) {
+            // TODO: add support for nested Resource classes using object-template
+            return jQuery(field_template.evaluate({
+                id:         self.getId(),
+                name:       binding,
+                value:      self[binding],
+                container:  this
+            }));
+        });
+        var container = jQuery(container_template.evaluate({ id: this.getId() }));
+        if (innerHtml.empty()) {
+            return container
+        } else {
+            jQuery(innerHtml).appendTo(container);
+            return container;
+        }
+    },
     renderTo: function(selector, template) {
         if (selector === undefined) {
             throw new IllegalOperationException("Cannot render a [Displayable object] without providing a selector.");
@@ -267,83 +334,17 @@ var Displayable = {
 };
 
 var Bindable = Module.create(Displayable, {
-    bindTo: function(selector) { this.binding = selector; return this; },
-    display: function() {
-        this.bindings = Array.from(arguments);
-        return this;
-    },
-    render: function(template) {
-        return this.renderTo(this.binding, template);
-    },
-    renderAs: function(options) {
-        if (Object.isString(options)) {
-            // TODO: render the fields too
-            return jQuery(options).attr('id', this.getId());
+    container: function() {
+        var selector = arguments[0];
+        if (selector != undefined) {
+            this.dom_container = selector;
+            return this;
         }
-        var opts = $H(options).update({ object: '<div/>' });
-        opts.keys().each(function(key) { opts.set(key.dasherize, opts.get(key)); });
-        var syntax = opts.get('syntax');  //undefined is ok as it is just ignored when compiling them
-        var handlers = [];
-        var self = this;
-        ['container', 'field', 'object'].inject(handlers, function(found, e) {
-            var option = opts.get(e);
-            if (!Object.isUndefined(option)) {
-                found.push({
-                    evaluate: function(obj) {
-                        var data = $H(obj);
-                        if (data.keys().include('container')) {
-                            return jQuery(option).attr('id', data.get('id'));
-                        } else {
-                            //just assume it again!
-                            var dom = jQuery(option).attr('id', "#{id}-#{name}".interpolate({
-                                id:   data.get('id'),
-                                name: data.get('name')
-                            })).text(data.get('value'));
-                            if (['input', 'option'].include(dom.tagName)) {
-                                dom.val(data.get('value'));
-                            }
-                            return dom;
-                        }
-                    }
-                });
-            } else {
-                option = opts.get('#{item}_template'.interpolate({ item: e }));
-                if (Object.isUndefined(option)) {
-                    throw new IllegalOperationException("No literal or template supplied for #{item}".interpolate({ item: e }));
-                }
-                if (Object.isString(option)) {
-                    found.push(template(option, syntax));
-                } else {
-                    found.push(option);
-                }
-            }
-            return found;
-        });
-        var container_template = handlers.shift();
-        var field_template = handlers.shift();
-        // TODO: add support for object-template
-        var innerHtml = this.bindings.collect(function(binding) {
-            // TODO: add support for nested Resource classes using object-template
-            return jQuery(field_template.evaluate({
-                id: self.getId(),
-                name: binding,
-                value: self[binding]
-            }));
-        });
-        var container = jQuery(container_template.evaluate({ container: true, id: this.getId() }));
-        if (innerHtml.empty()) {
-            return container
-        } else {
-            jQuery(innerHtml).appendTo(container);
-            return container;
-        }
-    },
-    ui: function() {
         return jQuery(this.selector());
     },
     selector: function() {
         var id = this.getId();
-        return "#{loc} ##{id}".interpolate({loc: this.binding || '', id: id});
+        return "#{loc} ##{id}".interpolate({loc: this.dom_container || '', id: id});
     },
     update: function() {
         var self = this;
@@ -354,7 +355,9 @@ var Bindable = Module.create(Displayable, {
                 field: f,
                 id:    self.getId()
             }), self.selector());
-            self[f] = binding.val();
+            if (binding.length > 0) {
+                self[f] = binding.val();
+            }
         });
     }
 });

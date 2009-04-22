@@ -49,16 +49,15 @@ var temp = function ($) {
         module('Displayable Tests');
         test('location should use the id() function and dom binding', function(){
             var subject = new TestResource({pk: 'id123'});
-            subject.bindTo('#div123');
+            subject.container('#div123');
             equals(subject.selector(), '#div123 #id123');
         });
 
         test('view function should return wrapped set from location', function() {
             expected = $('#sandbox #data');
             equals(new TestResource({
-                bound_to:   '#sandbox',
                 id:         function() { return 'data'; }
-            }).ui().html(), expected.html());
+            }).container('#sandbox').container().html(), expected.html());
         });
 
         test("toHTML function should call evaluate on the object's template", function() {
@@ -121,7 +120,7 @@ var temp = function ($) {
             equals(jQuery('#target1').html(), '<div id="1928374"></div>');
         });
 
-        test('renderAs function should create contain and fields using supplied templates', function() {
+        test('renderAs function should create contain and fields using default templates when literals are given', function() {
             var id = '12345';
             var name = "DWORD Smith";
             var age = 'Old as the hills';
@@ -181,8 +180,8 @@ var temp = function ($) {
             subject.display('name').renderAs({
                 container_template: '<form id="#{id}" method="POST" action="#{uri}></form>',
                 field:              '<input/>'
-            }).appendTo(selector).find('input#bob-name').bind('changed', function() {
-                subject.name = $(this).val();
+            }).appendTo(selector).bind('changed', function(e) {
+                subject.name = $(e.target).val();
                 return false;
             });
 
@@ -210,9 +209,7 @@ var temp = function ($) {
             var age = 'Deceased';
             var subject = new TestResource({ pk: id, name: name, age: age });
 
-            var content = subject.bindTo('#test-form')
-                .render(form_template)
-                .addClass('someCSS');
+            var content = subject.renderTo('#test-form', form_template).addClass('someCSS');
 
             jQuery('#submit-button', content)
                 .one('click', function() {
@@ -229,8 +226,19 @@ var temp = function ($) {
             $('#test-form #submit-button').trigger('click');
             equals(subject.name, joe, "subject name reset to 'Joe Bloggs'");
             equals(subject.age, reincarnated, "subject age reset to 'Reincarnated'");
-            ok(content.hasClass('someCSS'));
+            ok(content.hasClass('someCSS'));  //sanity check - just to make me believe that the wrapped set was returned
         });
+
+        test('update should silently ignore you if no binding was specified', function() {
+            var subject = new TestResource({ pk: 'xyz', name: 'foobar' });
+            subject.update('name');  //if this really happend, the call to binding.val() would place '' or undefined in the name attribute
+            equals(subject.name, 'foobar');
+        });
+
+        /*test('refresh should silently ignore you if no binding was specified', function() {
+            var subject = new TestResource();
+            subject.refresh();
+        });*/
 
         /********************************************************************************************************
          *      Abstract Resource Unit Tests
