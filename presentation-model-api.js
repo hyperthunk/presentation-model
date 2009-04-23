@@ -76,7 +76,7 @@ Object.extend(String.prototype, {
 
 var Module = {
     create: function() {
-        var args = $A(arguments);
+        var args = Array.from(arguments);
         if (Object.isHash(args.first())) {
             return args.first();
         } else {
@@ -158,7 +158,7 @@ var EventSink = {
 
 // TODO: use http response code to determine refresh behavior(s)
 
-var HttpService = Class.create2(EventSink, {
+var WebFacade = Class.create2(EventSink, {
     initialize: function(uri, model) {
         this.uri = uri;
         this.model = model;
@@ -166,7 +166,11 @@ var HttpService = Class.create2(EventSink, {
     create: function(data) {
         var clazz = this.model;
         if (Object.isArray(data) == true) {
-            return data.collect(function(e) { return new clazz(e); });
+            var islocal = data_set['__x_created_locally'] || true;
+            return data.collect(function(e) {
+                e['__x_created_locally'] = islocal;
+                return new clazz(e);
+            });
         }
         if (Object.isHash(data) == true) {
             return new clazz(data);
@@ -278,11 +282,7 @@ var Displayable = {
                 if (Object.isUndefined(option)) {
                     throw new IllegalOperationException("No literal or template supplied for #{item}".interpolate({ item: e }));
                 }
-                if (Object.isString(option)) {
-                    found.push(template(option, syntax));
-                } else {
-                    found.push(option);
-                }
+                found.push(Object.isString(option) ? template(option, syntax) : option);
             }
             return found;
         });
@@ -395,7 +395,7 @@ var ResourceConfigurationException = function(msg) {
     return new Error(msg);
 };
 
-var Resource = Module.create(Bindable, EventSink, {
+var Resource = Module.create(EventSink, {
     initialize: function(json) {
         this.hydrate(json);
     },
@@ -453,17 +453,8 @@ var Resource = Module.create(Bindable, EventSink, {
     }
 });
 
-var ResourceLoader = Class.create2(EventSink, {
-    load: function(resourceClass) {
-        this.publish('beforeLoad', resourceClass);
-        data_set = resourceClass.service.GET();
-        // TODO: finish this off, passing the deserialized objects to an event handler.
-        // TODO: return the data_set or this - decide which.
-    }
-});
-
 var create_resource = function(base_uri, attrs) {
     var clazz = Class.create2(Resource, attrs);
-    clazz.service = new HttpService(base_uri, clazz);
+    clazz.service = new WebFacade(base_uri, clazz);
     return clazz;
 };

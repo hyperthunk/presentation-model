@@ -37,7 +37,7 @@ var temp = function ($) {
          *      Custom test case classes/modules/data
          ********************************************************************************************************/
 
-        var TestResource = Class.create(Resource, {});
+        var TestResource = Class.create2(Resource, Bindable, {});
         TestResource.service = { GET: Prototype.emptyFunction };
 
         //mixin(TestResource, EventSink);
@@ -328,7 +328,7 @@ var temp = function ($) {
         test('push function should use the ajax service PUT method for new objects', function() {
             var instance_uri = '12345';
             var LocalTestResource = Class.create(Resource, { id: function() { return instance_uri; } });
-            LocalTestResource.service = new HttpService('local-test-resource/', LocalTestResource);
+            LocalTestResource.service = new WebFacade('local-test-resource/', LocalTestResource);
             var resource = new LocalTestResource();
 
             var mock_ajax = new jqMock.Mock(jQuery, 'ajax');
