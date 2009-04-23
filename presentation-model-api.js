@@ -260,18 +260,16 @@ var Displayable = {
             var option = opts.get(e);
             if (!Object.isUndefined(option)) {
                 found.push({
-                    evaluate: function(obj) {
-                        var data = $H(obj);
-                        if (!data.keys().include('container')) {
-                            return jQuery(option).attr('id', data.get('id'));
+                    evaluate: function(data) {
+                        if (Object.keys(data).include('container')) {
+                            return jQuery(option).attr('id', data.id);
                         } else {
                             //just assume it again!
-                            var dom = jQuery(option).attr('id', "#{id}-#{name}".interpolate({
-                                id:   data.get('id'),
-                                name: data.get('name')
-                            })).text(data.get('value'));  //TODO: consider merging the container also!
-                            if (['input', 'option'].include(dom.tagName)) {
-                                dom.val(data.get('value'));
+                            var dom = jQuery(option);
+                            dom.text(data.field.value);
+                            dom.addClass(data.field.name);  //TODO: consider merging the container also!
+                            if (['input', 'option'].include(dom[0].tagName)) {
+                                dom.val(data.field.value);
                             }
                             return dom;
                         }
@@ -291,14 +289,25 @@ var Displayable = {
         // TODO: add support for object-template
         var innerHtml = this.display_fields.collect(function(binding) {
             // TODO: add support for nested Resource classes using object-template
-            return jQuery(field_template.evaluate({
-                id:         self.getId(),
-                name:       binding,
-                value:      self[binding],
-                container:  self
-            }));
+            field = jQuery(
+                field_template.evaluate({
+                    field: {
+                        'name':   binding,
+                        'value':  self[binding]
+                    },
+                    object: self
+                })
+            );
+            if (!field.hasClass(binding)) {
+                field.addClass(binding);
+            }
+            return field;
         });
-        var container = jQuery(container_template.evaluate({ id: this.getId(), context: this }));
+        var container = jQuery(container_template.evaluate({ id: this.getId(), container: true }));
+        var id = this.getId();
+        if (container.attr('id') != id) {
+            container.attr('id', id);
+        }
         if (innerHtml.empty()) {
             return container
         } else {
@@ -320,6 +329,16 @@ var Displayable = {
         dom = jQuery(html);
         ws.html(dom);
         return dom;
+    },
+    getTemplateInjectionProperties: function() {
+        var attrs = new Hash();
+        var self = this;
+        // TODO: maybe caching this would be a good idea!?
+        // Q: how to unify the need for caching this, with the knowledge of when the object becomes dirty ???
+        Object.keys(this).each(function(attr) {
+            attrs.set('object.' + attr, self[attr]);
+        });
+        return attrs;
     },
     toHTML: function() {
         return this.template.evaluate(this);
@@ -364,7 +383,7 @@ var Bindable = Module.create(Displayable, {
         //NB: op is only applied to bindings that actually exist!
         var self = this;
         bindings.collect(function(f) {
-            var field = self.fieldSelector(f);
+            var field = '.' + f;
             binding = jQuery(field, self.container());
             if (binding.length > 0) {
                 binding.data('fieldname', f);
@@ -373,7 +392,7 @@ var Bindable = Module.create(Displayable, {
         }).compact().each(op);
     },
     fieldSelector: function(field) {
-        return '##{id}-#{field}'.interpolate({
+        return '##{id} .#{field}'.interpolate({
             field: field,
             id:    this.getId()
         });

@@ -1,6 +1,6 @@
 
 // override some of the based
-var DjangoResource = Module.create(Resource, {
+var DjangoResource = Class.create2(Resource, {
     id: function() {
         return this.pk;
     },

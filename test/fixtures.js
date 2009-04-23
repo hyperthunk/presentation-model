@@ -133,44 +133,23 @@ var temp = function ($) {
                     field:     '<li/>'
                 }).appendTo('#target2');
             equals(jQuery('#target2').html(),
-                '<ul id="12345"><li id="12345-name">DWORD Smith</li><li id="12345-age">Old as the hills</li></ul>');
+                '<ul id="12345"><li class="name">DWORD Smith</li><li class="age">Old as the hills</li></ul>');
         });
 
         test('renderAs function should render templates for both container and fields', function() {
             var id = '12345';
             var name = "DWORD Smith";
             var age = 'Old as the hills';
-            var subject = new TestResource({ pk: id, name: name, age: age });
+            var subject = new TestResource({ id: id, name: name, age: age });
 
             var content = subject
                 .display('name', 'age')
                 .renderAs({
                     container_template: '<ul id="#{id}"></ul>',
-                    field_template:     '<li id="#{id}-#{name}">#{value}</li>'
+                    field_template:     '<li parent="#{object.id}">#{field.value}</li>'
                 }).appendTo('#target3');
             equals(jQuery('#target3').html(),
-                '<ul id="12345"><li id="12345-name">DWORD Smith</li><li id="12345-age">Old as the hills</li></ul>');
-        });
-
-        test('renderAs function should render templates using custom syntax when supplied', function() {
-            var id = '9999';
-            var name = "Joe Smith";
-            var age = '42';
-            var subject = new TestResource({ pk: id, name: name, age: age });
-
-            var content = subject
-                .display('name', 'age')
-                .renderAs({
-                    syntax:             tags_syntax,
-                    container:          '<div class="green-border negated-lens"/>',
-                    field_template:     '<div>' +
-                                            '<label for="<%= id %>-<%= name %>"><%= name %></label>' +
-                                            '<input id="<%= id %>-<%= name %>" value="<%= value %>"></input>' +
-                                        '</div>'
-                }).appendTo('#target4');
-            equals(jQuery('#target4 div#9999 input#9999-name').val(), name);
-            equals(jQuery('#target4 div#9999 input#9999-age').val(), age);
-            equals(jQuery('div#9999 label').attr('for'), '9999-name');
+                '<ul id="12345"><li class="name" parent="12345">DWORD Smith</li><li class="age" parent="12345">Old as the hills</li></ul>');
         });
 
         test("renderAs function should return a wrapped set of the new content", function() {
@@ -186,7 +165,7 @@ var temp = function ($) {
             });
 
             var update = "Aerosmith";
-            $("input#bob-name").val(update).trigger('changed');
+            $("#bob .name").val(update).trigger('changed');
             equals(subject.name, update, "resetting object property based on event handler returned from renderTo");
         });
 
@@ -199,15 +178,15 @@ var temp = function ($) {
         test('update function should pull new values from inputs based on attributes', function() {
             var form_template =
                 new Template(
-                "<div id='<%= pk %>'>" +
-                    "<input id='<%= pk %>-name' type='text' value='<%= name %>' />" +
-                    "<input id='<%= pk %>-age' type='text' value='<%= age %>'/>" +
+                "<div id='#{id}'>" +
+                    "<input type='text' class='name' value='#{name}' />" +
+                    "<input type='text' class='age' value='#{age}'/>" +
                     "<button type='submit' id='submit-button'>Click me - go on, I dare you!</button>" +
-                "</div>", tags_syntax);
+                "</div>");
             var id = 'objectid234';
             var name = "Bing Crosby";
             var age = 'Deceased';
-            var subject = new TestResource({ pk: id, name: name, age: age });
+            var subject = new TestResource({ id: id, name: name, age: age });
 
             var content = subject.renderTo('#test-form', form_template).addClass('someCSS');
 
@@ -220,10 +199,10 @@ var temp = function ($) {
             var joe = "Joe Bloggs";
             var reincarnated = 'Reincarnated';
 
-            $('#objectid234-name').val(joe);
-            $('#objectid234-age').val(reincarnated);
+            $('#objectid234 .name').val(joe);
+            $('#objectid234 .age').val(reincarnated);
 
-            $('#test-form #submit-button').trigger('click');
+            $('#submit-button').trigger('click');
             equals(subject.name, joe, "subject name reset to 'Joe Bloggs'");
             equals(subject.age, reincarnated, "subject age reset to 'Reincarnated'");
             ok(content.hasClass('someCSS'));  //sanity check - just to make me believe that the wrapped set was returned
