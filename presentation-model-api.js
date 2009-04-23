@@ -405,30 +405,20 @@ var Resource = Module.create(EventSink, {
     toJSON: function() {
         var json = new Hash();
         var self = this;
-        if (this.inline_fields.size() > 0) {
-            var fields = new Hash();
-            this.inline_fields.each(function(f) { fields.set(f, self[f]); });
-            json.set('fields', fields.toObject());
-        }
-        this.serializable.reject(function(s) {
-            return self.inline_fields.member(s);
-        } ).each(function(e) {
+        this.serializable.each(function(e) {
             json.set(e, self[e]);
         });
         return json.toObject();
     },
     hydrate: function(json) {
         // TODO: add support for nested Resource objects - maybe an override is required?
-        var data = $H().merge(json);
+        var data = $H(json);
         if (data.get('__x_created_locally') == undefined) {
             data.set('__x_created_locally', true);
         }
-        fields = data.unset('fields');
-        data.update(fields || {});
         updates = data.toObject();
         Object.extend(this, updates);
         this.serializable = data.keys().without('__x_created_locally');
-        this.inline_fields = Object.keys(fields);
         return this;
     },
     pull: function() {

@@ -259,54 +259,6 @@ var temp = function ($) {
          *      Abstract Resource Unit Tests
          ********************************************************************************************************/
 
-        module('Resource Tests');
-        test('all fields should be deserialized inline', function() {
-            json = {
-                "pk": "demo-list-1",
-                "model": "provisioning.mailinglist",
-                "fields": {"contacts": [], "created": "2009-04-16 15:18:48"}
-            };
-            list = new TestResource(json);
-            contacts = list.contacts;
-            equals(list.pk,                 'demo-list-1', 'primary key value');
-            equals(contacts.size(),         0, 'size of contact list');
-            equals(list.created,            '2009-04-16 15:18:48', '**created timestamp');
-            ['pk', 'model', 'contacts', 'created'].each(function(e) {
-                ok(list.serializable.member(e),
-                   'list of serializable fields contains member #{item}'.interpolate({item: e}));
-            });
-            ok(list.inline_fields.member('contacts'), 'contacts added as an inline field');
-            ok(list.inline_fields.member('created'), 'created added as an inline field');
-        });
-
-        test('inlined fields should be chunked into a substructure', function() {
-            var resource = new TestResource();
-            resource.hydrate({
-                pk:     '1234',
-                model:  'django.model.ref',
-                fields: {
-                    name:   'Tim Watson',
-                    age:    31
-                }
-            });
-            var name = "Joe Blogs";
-            var age  = 62;
-
-            resource.name = name;
-            resource.age  = age;
-            jqMock.assertThat(
-                resource.toJSON(),
-                is.objectThatIncludes({
-                    pk:     '1234',
-                    model:  'django.model.ref',
-                    fields: {
-                       name:   name,
-                       age:    age
-                    }
-                })
-            );
-        });
-
         test('pull function should utilize ajax service on defining class', function() {
             var mock_service = new jqMock.Mock(TestResource.service, 'GET');
             var stubId = 'stubId';
@@ -344,6 +296,58 @@ var temp = function ($) {
 
             mock_ajax.verifyAll();
             mock_ajax.restore();
+        });
+
+        // django resource for testing
+        var DjangoTestResource = Class.create2(DjangoResource, {});
+        DjangoTestResource.service = { GET: Prototype.emptyFunction };
+
+        module('DjangoResourceAdapter Tests');
+        test('all fields should be deserialized inline', function() {
+            json = {
+                "pk": "demo-list-1",
+                "model": "provisioning.mailinglist",
+                "fields": {"contacts": [], "created": "2009-04-16 15:18:48"}
+            };
+            list = new DjangoTestResource(json);
+            contacts = list.contacts;
+            equals(list.pk,                 'demo-list-1', 'primary key value');
+            equals(contacts.size(),         0, 'size of contact list');
+            equals(list.created,            '2009-04-16 15:18:48', '**created timestamp');
+            ['pk', 'model', 'contacts', 'created'].each(function(e) {
+                ok(list.serializable.member(e),
+                   'list of serializable fields contains member #{item}'.interpolate({item: e}));
+            });
+            ok(list.inline_fields.member('contacts'), 'contacts added as an inline field');
+            ok(list.inline_fields.member('created'), 'created added as an inline field');
+        });
+
+        test('inlined fields should be chunked into a substructure', function() {
+            var resource = new DjangoTestResource();
+            resource.hydrate({
+                pk:     '1234',
+                model:  'django.model.ref',
+                fields: {
+                    name:   'Tim Watson',
+                    age:    31
+                }
+            });
+            var name = "Joe Blogs";
+            var age  = 62;
+
+            resource.name = name;
+            resource.age  = age;
+            jqMock.assertThat(
+                resource.toJSON(),
+                is.objectThatIncludes({
+                    pk:     '1234',
+                    model:  'django.model.ref',
+                    fields: {
+                       name:   name,
+                       age:    age
+                    }
+                })
+            );
         });
 
         /*test('', function() {
