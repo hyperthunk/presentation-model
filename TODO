@@ -1,17 +1,6 @@
 
 Notes/Tasks
 
-* use a CSS class to tag fields instead of a composite ID.
-  - eg: MyClass.display('name', 'age').render.apply(obj, []);
-    => <div id='oid'>
-        <div class='MyClass.name'>Joe Blogs</div>
-        <div class='MyClass.age'>21</div>
-       </div>
-
-    obj.id = '123'
-    MyClass.fieldSelector.apply(obj, ['name']);
-    => '#123 .myclass-name'
-
 * use a regex to identify the serialization mechanism, instead of hard coding it
   - eg: /.*(\.(?:xml|json|html)|\/)/.exec('path/to/resource/');
     => ['path/to/resource/', '/']
@@ -21,5 +10,3 @@ Notes/Tasks
 
     /.*(\.(?:xml|json|html)|\/)/.exec('path/to/resource/foo.xml')
     => ['path/to/resource/foo.xml', '.xml'] // also works for .json, etc
-
-

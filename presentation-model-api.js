@@ -256,7 +256,7 @@ var Displayable = {
         var syntax = opts.get('syntax');  //undefined is ok as it is just ignored when compiling them
         var handlers = [];
         var self = this;
-        ['container', 'field', 'object'].inject(handlers, function(found, e) {
+        ['container', 'field'].inject(handlers, function(found, e) {
             var option = opts.get(e);
             if (!Object.isUndefined(option)) {
                 found.push({
@@ -264,7 +264,7 @@ var Displayable = {
                         if (Object.keys(data).include('container')) {
                             return jQuery(option).attr('id', data.id);
                         } else {
-                            //just assume it again!
+                            // TODO: deal with arrays
                             var dom = jQuery(option);
                             dom.text(data.field.value);
                             dom.addClass(data.field.name);  //TODO: consider merging the container also!
