@@ -169,6 +169,68 @@ var temp = function ($) {
             equals(subject.name, update, "resetting object property based on event handler returned from renderTo");
         });
 
+
+        module('RenderStrategy Tests');
+        test('it should puke if you try to initialize with no fields', function() {
+            jqMock.expectThatExceptionThrown(function() { new RenderStrategy({}); },
+                is.exception({
+                    message: "RenderStrategy requires option [fields].",
+                    type: ArgumentException
+                })
+            );
+        });
+
+        test('it should puke if you try to initialize with no container rule', function() {
+            jqMock.expectThatExceptionThrown(function() {
+                    new RenderStrategy({
+                        fields:     { name: 'name' },
+                        templates:  {}
+                    }).render();
+                },
+                is.exception({
+                    message: "RenderStrategy requires a rule or template for [container].",
+                    type: IllegalOperationException
+                })
+            );
+        });
+
+        test('render should do X when field is an array', function() {
+            var id = 'x909';
+            var name = "Foo Bar";
+            var age = '999';
+            var subject = { id: id, name: name, contacts: [ 'foo.bar@gmail.com', 'a.b@c.com' ] };
+            var contacts = subject.contacts;
+
+            var strategy = new RenderStrategy({
+                context: subject,
+                fields: {
+                    name: name,
+                    contacts: contacts
+                },
+                templates: {
+                    container:              '<ul/>',
+                    field:                  '<li/>',
+                    multi_field_template:   '<div><ul>#{$items}</ul></div>'
+                }
+            });
+            var content = strategy.render().appendTo('#targetX');
+            equals($('#targetX').html(),
+                '<ul id="x909">' +
+                    '<li class="name">Foo Bar</li>' +
+                    '<li class="contacts">'         +
+                        '<div>'                     +
+                            '<ul>'                  +
+                                '<li class="items index1">foo.bar@gmail.com</li>'    +
+                                '<li class="items index2">a.b@c.com</li>'            +
+                            '</ul>'                 +
+                        '</div>'                    +
+                    '</li>'                         +
+                '</ul>');
+            equals($('#x909 .contacts .items .index1').text(), 'foo.bar@gmail.com');
+            equals($('#x909 .contacts .items .index2').text(), 'a.b@c.com');
+        });
+
+
         /********************************************************************************************************
          *      Bindable Unit Tests
          ********************************************************************************************************/

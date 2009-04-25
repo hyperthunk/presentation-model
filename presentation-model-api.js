@@ -95,6 +95,13 @@ var IllegalOperationException = Class.create({
     name: "IllegalOperationException"
 });
 
+var ArgumentException = Class.create({
+    initialize: function(msg) {
+        this.message = msg;
+    },
+    name: "ArgumentException"
+});
+
 var defaults = function(options, defaults) {
     return jQuery.extend(defaults, options || {});
 };
@@ -241,6 +248,49 @@ var WebFacade = Class.create2(EventSink, {
 /********************************************************************************************************
  *      UI/DOM Integration based on jQuery
  ********************************************************************************************************/
+
+var RenderStrategy = Class.create({
+    initialize: function(options) {
+        jQuery.extend(this, options);
+        if (Object.isUndefined(this.fields)) {
+            throw new ArgumentException('RenderStrategy requires option [fields].');
+        }
+        this.initial_content = this.context;
+    },
+    verify_configuration: function() {
+        var self = this;
+        ['container', 'field', 'multi_field', 'complex_field'].each(function(e) {
+            var literal = self[e];
+            var template = e + '_template';
+            if (literal) {
+                self[template] = self.gen_template(literal);
+            }
+            self.verify_template(template);
+        });
+    },
+    verify_template: function(template_name) {
+        var template = self[template_name];
+        var template_exists = !Object.isUndefined(template) && Object.isFuntion(template.evaluate);
+        if ((!template_exists) && this.template_is_required(template_name)) {
+            throw new IllegalOperationException(
+                "RenderStrategy requires a rule or template for [#{item}].".interpolate({
+                item: template_name.gsub(/_template/, '')
+            }));
+        }
+    },
+    template_is_required: function(template) {
+        if (['container_template', 'field_template'].include(template)) {
+            return true;
+        }
+        /*Object.keys(this.fields).each(function(field) {
+
+        });*/
+        return false;
+    },
+    render: function() {
+        this.verify_configuration();
+    }
+});
 
 var Displayable = {
     display: function() {
