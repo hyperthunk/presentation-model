@@ -173,7 +173,7 @@ var WebFacade = Class.create2(EventSink, {
     create: function(data) {
         var clazz = this.model;
         if (Object.isArray(data) == true) {
-            var islocal = data_set['__x_created_locally'] || true;
+            var islocal = data['__x_created_locally'] || true;
             return data.collect(function(e) {
                 e['__x_created_locally'] = islocal;
                 return new clazz(e);
@@ -186,16 +186,17 @@ var WebFacade = Class.create2(EventSink, {
     },
     GET: function(options) {
         var result = undefined;
+	var self = this;
         var opts = new Hash(
             defaults(this.ajax_options('GET', false, {
                 success: function(data) {
                     data['__x_created_locally'] = false;
-                    result = this.create(data);
+                    result = self.create(data);
                 }
             }), default_value(options, {}))
         );
         this.set_path(opts);
-        var xhr = jQuery.ajax(opts);
+        var xhr = jQuery.ajax(opts.toObject());
         if (opts.async == true) {
             return xhr;
         }
@@ -203,10 +204,11 @@ var WebFacade = Class.create2(EventSink, {
     },
     PUT: function(options) {
         var result = undefined;
+	var self = this;
         var opts = new Hash(
             defaults(this.ajax_options('PUT', false, {
                 success: function(data) {
-                    result = this.create(data);
+                    result = self.create(data);
                 }
             }), default_value(options, {}))
         );
