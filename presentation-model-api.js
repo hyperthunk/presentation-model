@@ -63,6 +63,10 @@ Object.isObject = function(x) {
     }
 };
 
+Object.isPrimative = function(x) {
+    return (Object.isNumber(x) || Object.isString(x));
+};
+
 Object.extend(Array.prototype, {
     empty: function() { return this.size() == 0; }
 });
@@ -181,7 +185,7 @@ var WebFacade = Class.create2(EventSink, {
     create: function(data) {
         var clazz = this.model;
         if (Object.isArray(data) == true) {
-            var islocal = data_set['__x_created_locally'] || true;
+            var islocal = data['__x_created_locally'] || true;
             return data.collect(function(e) {
                 e['__x_created_locally'] = islocal;
                 return new clazz(e);
@@ -194,16 +198,17 @@ var WebFacade = Class.create2(EventSink, {
     },
     GET: function(options) {
         var result = undefined;
+        var self = this;
         var opts = new Hash(
             defaults(this.ajax_options('GET', false, {
                 success: function(data) {
                     data['__x_created_locally'] = false;
-                    result = this.create(data);
+                    result = self.create(data);
                 }
             }), default_value(options, {}))
         );
         this.set_path(opts);
-        var xhr = jQuery.ajax(opts);
+        var xhr = jQuery.ajax(opts.toObject());
         if (opts.async == true) {
             return xhr;
         }
@@ -211,10 +216,11 @@ var WebFacade = Class.create2(EventSink, {
     },
     PUT: function(options) {
         var result = undefined;
+        var self = this;
         var opts = new Hash(
             defaults(this.ajax_options('PUT', false, {
                 success: function(data) {
-                    result = this.create(data);
+                    result = self.create(data);
                 }
             }), default_value(options, {}))
         );
@@ -260,60 +266,169 @@ var WebFacade = Class.create2(EventSink, {
 var RenderStrategy = Class.create({
     initialize: function(options) {
         jQuery.extend(this, options);
-        if (Object.isUndefined(this.fields)) {
-            throw new ArgumentException('RenderStrategy requires option [fields].');
-        }
-        this.initial_content = this.context;
-    },
-    verify_configuration: function() {
-        var self = this;
-        ['container', 'field', 'multi_field', 'complex_field'].each(function(e) {
-            var literal = self.templates[e];
-            var template = e + '_template';
-            if (literal) {
-                self[template] = self.gen_template(literal);
-            }
-            self.verify_template(template);
-        });
+        // do i need this?
+        //this.initial_content = this.context;
     },
     verify_template: function(template_name) {
         var template = this[template_name];
         var template_exists = !Object.isUndefined(template) && Object.isFunction(template.evaluate);
-        if ((!template_exists) && this.template_is_required(template_name)) {
+        if (!template_exists) {
+            this.fail_if_required(template_name);
+        }
+    },
+    fail_if_required: function(template_name, container) {
+        var requirement_checks = {
+            multi_field_template:   Object.isArray,
+            complex_field_template: Object.isObject
+        };
+        if (['container_template', 'field_template'].include(template_name)) {
             throw new IllegalOperationException(
                 "RenderStrategy requires a rule or template for [#{item}].".interpolate({
                     item: template_name.gsub(/_template/, '')
                 })
             );
-        }
-    },
-    template_is_required: function(template) {
-        var requirement_checks = {
-            multi_field_template: Object.isArray,
-            complex_field_template: Object.isObject
-        };
-        if (['container_template', 'field_template'].include(template)) {
-            return true;
-        } else if (requirement_checks[template] != undefined) {
+        } else if (requirement_checks[template_name] != undefined) {
             var self = this;
-            var fn = requirement_checks[template];
-            return Object.keys(self.fields).detect(
+            var fn = requirement_checks[template_name];
+            var matched = Object.keys(self.fields).detect(
                 function(field) {
                     return (fn(self.fields[field]));
                 }
-            ) != undefined;
+            );
+            if (matched != undefined) {
+                var message = (Object.isString(matched)) ?
+                    "RenderStrategy requires a [#{item}] rule or template for attribute [#{matched}]." :
+                    "RenderStrategy requires a rule or template for [#{item}].";
+                throw new IllegalOperationException(
+                    message.interpolate({
+                        item: template_name.gsub(/_template/, ''),
+                        matched: matched
+                    })
+                );
+            }
         }
         return false;
     },
-    gen_template: function(literal) {
+    gen_container_template: function(literal) {
         return {
             evaluate: function(data) {
-                return jQuery(option).attr('id', data.id);
+                return jQuery(literal).attr('id', data.id);
             }
         };
     },
+    gen_field_template: function(literal) {
+        return {
+            evaluate: function(data) {
+                var dom = jQuery(literal);
+                dom.text(data.$field.value);
+                dom.addClass(data.$field.name);
+                if (['input', 'option'].include(dom[0].tagName)) {
+                    dom.val(data.$field.value);
+                }
+                return dom;
+            }
+        };
+    },
+    gen_multi_field_template: function(literal) {
+        return this.gen_recursive_template_wrapper(literal, '$items');
+    },    
+    gen_complex_field_template: function(literal) {
+        return this.gen_recursive_template_wrapper(literal, '$fields');
+    },
+    gen_recursive_template_wrapper: function(literal, content_variable) {
+        var elem = jQuery(literal).text('#{' + content_variable + '}').wrap('<div/>');
+        return new Template(elem.parent().html());
+    },
+    prepare_templates: function() {
+        var self = this;
+        ['container', 'field', 'multi_field', 'complex_field'].each(function(e) {
+            var literal = self.templates[e];
+            var template = e + '_template';
+            if (literal) {
+                var fn = self['gen_' + template];
+                self[template] = fn.call(self, literal);
+            } else {
+                self[template] = self.templates[template];
+            }
+        });
+    },
+    require_template: function(name, attr) {
+        template = this[name];
+        if (template === undefined || typeof template.evaluate != "function") {
+            var message = undefined;
+            if (attr === undefined) {
+                message = "RenderStrategy requires a rule or template for [#{item}].";
+            } else {
+                message = "RenderStrategy requires a [#{item}] rule or template for attribute [#{attr}].";
+            }
+            throw new IllegalOperationException(
+                message.interpolate({ item: name.gsub(/_template/, ''), attr: attr })
+            );
+        }
+        return template;
+    },
+    display_fields: function(context) {
+        if (context.display_fields) {
+            return context.display_fields;
+        }
+        if (Object.isPrimative(context)) {
+            return null;
+        }
+        return Object.keys(context).select(function(e) {
+            return !Object.isFunction(e);
+        });
+    },
     render: function() {
-        this.verify_configuration();
+        if (Object.isUndefined(this.object)) {
+            throw new ArgumentException('Cannot render: object is undefined.');
+        }
+        this.prepare_templates();
+        return this.perform_rendering(this.object, this.container_template);
+    },
+    perform_rendering: function(context, template, scope) {
+        var containment_output = this.render_object(context, template ||
+                                                    this.require_template('container_template',
+                                                        (scope === undefined) ? '' : scope.join('.')));
+        scope = scope || new Array();
+        var fields = null;
+        var self = this;
+        fields = this.display_fields(context);
+        var field_templates = new Hash();
+        fields.each(function(f) {
+            if (Object.isPrimative(context[f])) {
+                field_templates.set(f, self.require_template('field_template', new Array(scope.concat([f])).join('.')));
+            }
+        });
+        var innerHtml = [];
+        fields.inject(innerHtml, function(acc, binding) {
+            var new_scope = new Array(scope.concat([binding]));
+            var scope_name = new_scope.join('.');
+            var value = context[binding];
+            if (Object.isArray(value)) {
+                field = self.perform_rendering(
+                    value, self.require_template('multi_field_template', scope_name), new_scope);
+            } else if (Object.isObject(value)) {
+                field = self.perform_rendering(
+                    value, self.require_template('complex_field_template', scope_name), new_scope);
+            } else {
+                field = self.render_object({
+                    $field: {
+                        name:  binding,
+                        value: value
+                    },
+                    $object: context
+                }, field_templates.get(binding));   
+            }
+            if (!field.hasClass(binding)) {
+                field.addClass(binding);
+            }
+            acc.push(field);
+            return acc;
+        });
+        //TODO: continue with this.....
+    },
+    render_object: function(context, template) {
+        return jQuery(template.evaluate(context));
     }
 });
 

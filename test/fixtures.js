@@ -168,13 +168,13 @@ var temp = function ($) {
             $("#bob .name").val(update).trigger('changed');
             equals(subject.name, update, "resetting object property based on event handler returned from renderTo");
         });
-
-
-        module('RenderStrategy Tests');
-        test('it should puke if you try to initialize with no fields', function() {
-            jqMock.expectThatExceptionThrown(function() { new RenderStrategy({}); },
+        
+        test('it should puke if you try to render without specifying an object', function() {
+            jqMock.expectThatExceptionThrown(function() {
+                    new RenderStrategy({}).render();
+                },
                 is.exception({
-                    message: "RenderStrategy requires option [fields].",
+                    message: "Cannot render: object is undefined.",
                     type: ArgumentException
                 })
             );
@@ -183,7 +183,7 @@ var temp = function ($) {
         test('it should puke if you try to initialize with no container rule', function() {
             jqMock.expectThatExceptionThrown(function() {
                     new RenderStrategy({
-                        fields:     { name: 'name' },
+                        object:     { name: 'name' },
                         templates:  {}
                     }).render();
                 },
@@ -198,7 +198,7 @@ var temp = function ($) {
 	    var contacts = [ 'foo.bar@gmail.com', 'a.b@c.com' ];
             jqMock.expectThatExceptionThrown(function() {
                     new RenderStrategy({
-                        fields:     { contacts: contacts },
+                        object:     { contacts: contacts },
                         templates:  {
                             container:  '<div/>',
                             field:      '<div/>'
@@ -206,7 +206,7 @@ var temp = function ($) {
                     }).render();
                 },
                 is.exception({
-                    message: "RenderStrategy requires a rule or template for [multi_field].",
+                    message: "RenderStrategy requires a [multi_field] rule or template for attribute [contacts].",
                     type: IllegalOperationException
                 })
             );
@@ -216,7 +216,7 @@ var temp = function ($) {
             var contacts = [ 'foo.bar@gmail.com', 'a.b@c.com' ];
             jqMock.expectThatExceptionThrown(function() {
                     new RenderStrategy({
-                        fields:     {
+                        object:     {
                             name: 't4',
                             complex: {
                                 id: '192384777',
@@ -227,7 +227,28 @@ var temp = function ($) {
                     }).render();
                 },
                 is.exception({
-                    message: "RenderStrategy requires a rule or template for [complex_field].",
+                    message: "RenderStrategy requires a [complex_field] rule or template for attribute [complex].",
+                    type: IllegalOperationException
+                })
+            );                
+        });
+
+        test('it should puke if you try to render objects containing arrays with no multi_field rule', function() {
+            var contacts = [ 'foo.bar@gmail.com', 'a.b@c.com' ];
+            jqMock.expectThatExceptionThrown(function() {
+                    new RenderStrategy({
+                        object: {
+                            name: 't4',
+                            complex: {
+                                id:       '192384777',
+                                contacts: contacts
+                            }
+                        },
+                        templates:  { container: '<div/>', field: '<div/>', complex_field: '<div/>' }
+                    }).render();
+                },
+                is.exception({
+                    message: "RenderStrategy requires a [multi_field] rule or template for attribute [complex.contacts].",
                     type: IllegalOperationException
                 })
             );                
@@ -241,7 +262,7 @@ var temp = function ($) {
             var contacts = subject.contacts;
 
             var strategy = new RenderStrategy({
-                context: subject,
+                object: subject,
                 fields: {
                     name: name,
                     contacts: contacts
