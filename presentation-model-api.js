@@ -216,7 +216,7 @@ var WebFacade = Class.create2(EventSink, {
     },
     PUT: function(options) {
         var result = undefined;
-        var self = this;
+	var self = this;
         var opts = new Hash(
             defaults(this.ajax_options('PUT', false, {
                 success: function(data) {
