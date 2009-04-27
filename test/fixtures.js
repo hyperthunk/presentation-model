@@ -194,6 +194,45 @@ var temp = function ($) {
             );
         });
 
+	test('it should puke if you try to render arrays with no multi_field rule', function() {
+	    var contacts = [ 'foo.bar@gmail.com', 'a.b@c.com' ];
+            jqMock.expectThatExceptionThrown(function() {
+                    new RenderStrategy({
+                        fields:     { contacts: contacts },
+                        templates:  {
+                            container:  '<div/>',
+                            field:      '<div/>'
+                        }
+                    }).render();
+                },
+                is.exception({
+                    message: "RenderStrategy requires a rule or template for [multi_field].",
+                    type: IllegalOperationException
+                })
+            );
+	});
+        
+        test('it should puke if you try to render objects with no complex_field rule', function() {
+            var contacts = [ 'foo.bar@gmail.com', 'a.b@c.com' ];
+            jqMock.expectThatExceptionThrown(function() {
+                    new RenderStrategy({
+                        fields:     {
+                            name: 't4',
+                            complex: {
+                                id: '192384777',
+                                contacts: contacts
+                            }
+                        },
+                        templates:  { container: '<div/>', field: '<div/>', multi_field: '<div/>' }
+                    }).render();
+                },
+                is.exception({
+                    message: "RenderStrategy requires a rule or template for [complex_field].",
+                    type: IllegalOperationException
+                })
+            );                
+        });
+
         test('render should do X when field is an array', function() {
             var id = 'x909';
             var name = "Foo Bar";

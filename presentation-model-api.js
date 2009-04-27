@@ -55,6 +55,14 @@ Object.extend(Class, {
     }
 });
 
+Object.isObject = function(x) {
+    if (!((Object.isArray(x) || (Object.isHash(x) || Object.isFunction(x) || Object.isNumber(x))))) {
+        return (typeof x == 'object');
+    } else {
+        return false;
+    }
+};
+
 Object.extend(Array.prototype, {
     empty: function() { return this.size() == 0; }
 });
@@ -260,7 +268,7 @@ var RenderStrategy = Class.create({
     verify_configuration: function() {
         var self = this;
         ['container', 'field', 'multi_field', 'complex_field'].each(function(e) {
-            var literal = self[e];
+            var literal = self.templates[e];
             var template = e + '_template';
             if (literal) {
                 self[template] = self.gen_template(literal);
@@ -269,23 +277,40 @@ var RenderStrategy = Class.create({
         });
     },
     verify_template: function(template_name) {
-        var template = self[template_name];
-        var template_exists = !Object.isUndefined(template) && Object.isFuntion(template.evaluate);
+        var template = this[template_name];
+        var template_exists = !Object.isUndefined(template) && Object.isFunction(template.evaluate);
         if ((!template_exists) && this.template_is_required(template_name)) {
             throw new IllegalOperationException(
                 "RenderStrategy requires a rule or template for [#{item}].".interpolate({
-                item: template_name.gsub(/_template/, '')
-            }));
+                    item: template_name.gsub(/_template/, '')
+                })
+            );
         }
     },
     template_is_required: function(template) {
+        var requirement_checks = {
+            multi_field_template: Object.isArray,
+            complex_field_template: Object.isObject
+        };
         if (['container_template', 'field_template'].include(template)) {
             return true;
+        } else if (requirement_checks[template] != undefined) {
+            var self = this;
+            var fn = requirement_checks[template];
+            return Object.keys(self.fields).detect(
+                function(field) {
+                    return (fn(self.fields[field]));
+                }
+            ) != undefined;
         }
-        /*Object.keys(this.fields).each(function(field) {
-
-        });*/
         return false;
+    },
+    gen_template: function(literal) {
+        return {
+            evaluate: function(data) {
+                return jQuery(option).attr('id', data.id);
+            }
+        };
     },
     render: function() {
         this.verify_configuration();
