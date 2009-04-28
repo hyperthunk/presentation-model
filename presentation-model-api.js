@@ -115,7 +115,7 @@ var ArgumentException = Class.create({
 });
 
 var defaults = function(options, defaults) {
-    return jQuery.extend(defaults, options || {});
+    return jQuery.extend(options || {}, defaults);
 };
 
 var default_value = function(input, default_val) {
