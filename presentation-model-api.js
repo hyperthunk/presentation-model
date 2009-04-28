@@ -331,7 +331,7 @@ var RenderStrategy = Class.create({
     },
     gen_multi_field_template: function(literal) {
         return this.gen_recursive_template_wrapper(literal, '$items');
-    },    
+    },
     gen_complex_field_template: function(literal) {
         return this.gen_recursive_template_wrapper(literal, '$fields');
     },
@@ -356,7 +356,7 @@ var RenderStrategy = Class.create({
         template = this[name];
         if (template === undefined || typeof template.evaluate != "function") {
             var message = undefined;
-            if (attr === undefined) {
+            if (attr === undefined || attr == '') {
                 message = "RenderStrategy requires a rule or template for [#{item}].";
             } else {
                 message = "RenderStrategy requires a [#{item}] rule or template for attribute [#{attr}].";
@@ -372,37 +372,38 @@ var RenderStrategy = Class.create({
             return context.display_fields;
         }
         if (Object.isPrimative(context)) {
-            return null;
+            return [];
         }
         return Object.keys(context).select(function(e) {
             return !Object.isFunction(e);
         });
     },
-    render: function() {
+    render: function(subject) {
+        if (subject != undefined) {
+            this.object = subject;
+        }
         if (Object.isUndefined(this.object)) {
             throw new ArgumentException('Cannot render: object is undefined.');
         }
         this.prepare_templates();
-        return this.perform_rendering(this.object, this.container_template);
+        return this.perform_rendering(this.object, this.container_template, []);
     },
     perform_rendering: function(context, template, scope) {
         var containment_output = this.render_object(context, template ||
-                                                    this.require_template('container_template',
-                                                        (scope === undefined) ? '' : scope.join('.')));
-        scope = scope || new Array();
+                                                    this.require_template('container_template', scope.join().gsub(/,/, '.')));
         var fields = null;
         var self = this;
         fields = this.display_fields(context);
         var field_templates = new Hash();
         fields.each(function(f) {
             if (Object.isPrimative(context[f])) {
-                field_templates.set(f, self.require_template('field_template', new Array(scope.concat([f])).join('.')));
+                field_templates.set(f, self.require_template('field_template', new Array(scope.concat([f])).join().gsub(/,/, '.')));
             }
         });
         var innerHtml = [];
         fields.inject(innerHtml, function(acc, binding) {
             var new_scope = new Array(scope.concat([binding]));
-            var scope_name = new_scope.join('.');
+            var scope_name = new_scope.join().gsub(/,/, '.');
             var value = context[binding];
             if (Object.isArray(value)) {
                 field = self.perform_rendering(
@@ -417,7 +418,7 @@ var RenderStrategy = Class.create({
                         value: value
                     },
                     $object: context
-                }, field_templates.get(binding));   
+                }, field_templates.get(binding));
             }
             if (!field.hasClass(binding)) {
                 field.addClass(binding);
