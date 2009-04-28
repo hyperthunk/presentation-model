@@ -272,7 +272,9 @@ var RenderStrategy = Class.create({
             evaluate: function(data) {
                 var jq = jQuery(literal)
                 if (data.$object && data.$object.id) {
-                    jq.attr('id', data.$object.id);
+                    var id_field = data.$object.id;
+                    var id = (Object.isFunction(id_field)) ? id_field.call(data.$object) : id_field;
+                    jq.attr('id', id);
                 }
                 return jq;
             }
