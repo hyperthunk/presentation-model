@@ -302,6 +302,36 @@ var temp = function ($) {
             equals($('#x909 .contacts .index1').text(), 'a.b@c.com');
         });
 
+        test('render should apply base templates to nested json objects', function() {
+            var subject = new TestResource({
+                id: 9616143,
+                name: 'Thor',
+                contract: {
+                    type: 'dubious',
+                    rating: '85%',
+                    tags: [ 'utility', 'power user' ]
+                }
+            }).display('name', 'contract');
+            var strategy = new RenderStrategy({
+                inline_array_fields: true,
+                templates: {
+                    container:              '<div/>',
+                    field_template:         '<div>Contract #{$field.name}: #{$field.value}</div>',
+                    complex_field:          '<div/>'
+                }
+            });
+            var content = strategy.render(subject).appendTo('#targetY');
+            var expected_html =
+                '<div id="9616143">' +
+                    '<div class="name">Contract name: Thor</div>'  +
+                    '<div class="contract">' +
+                        '<div class="type">Contract type: dubious</div>' +
+                        '<div class="rating">Contract rating: 85%</div>' +
+                        '<div class="tags">Contract tags: utility,power user</div>' +
+                    '</div>' +
+                "</div>";
+            equals($('#targetY').html(), expected_html);
+        });
 
         /********************************************************************************************************
          *      Bindable Unit Tests

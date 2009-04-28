@@ -313,7 +313,7 @@ var RenderStrategy = Class.create({
                 self[template] = fn.call(self, literal);
             } else {
                 var supplied = self.templates[template];
-                if ((typeof supplied != 'undefined') && !(supplied instanceof Template)) {
+                if ((typeof supplied != 'undefined') && !(Object.isFunction(supplied.evaluate))) {
                     supplied = new Template(supplied);
                 }
                 self[template] = supplied;
@@ -342,9 +342,16 @@ var RenderStrategy = Class.create({
         if (Object.isPrimative(context)) {
             return [];
         }
-        return Object.keys(context).select(function(e) {
-            return !Object.isFunction(e);
+        var attributes = Object.keys(context).select(function(e) {
+            return !Object.isFunction(context[e]);
         });
+        if (context.__x_type_classifier == 'resource') {
+            return attributes.reject(function(e) {
+                return ['__x_created_locally', 'serializable', '__x_type_classifier'].include(e);
+            });
+        } else {
+            return attributes;
+        }
     },
     render: function(subject) {
         if (subject != undefined) {
@@ -382,7 +389,7 @@ var RenderStrategy = Class.create({
         fields = this.display_fields(context);
         var field_templates = new Hash();
         fields.each(function(f) {
-            if (Object.isPrimative(context[f])) {
+            if (Object.isPrimative(context[f]) || self.inline_array_fields) {
                 field_templates.set(f, self.require_template('field_template',
                                                              self.scope_name(new Array(scope.concat([f])))));
             }
@@ -392,7 +399,7 @@ var RenderStrategy = Class.create({
             var new_scope = new Array(scope.concat([binding]));
             var scope_name = self.scope_name(new_scope);
             var value = context[binding];
-            if (Object.isArray(value)) {
+            if (!self.inline_array_fields && Object.isArray(value)) {
                 var items = self.perform_rendering(value,
                                                    self.require_template('multi_field_template', scope_name), new_scope);
                 //TODO: this feels like a bit of a hack - some refactoring is needed to make it smell less
@@ -593,7 +600,8 @@ var Resource = Module.create(EventSink, {
             throw ResourceConfigurationException("No service has been configured for this resource class");
         }
         return this.constructor.service;
-    }
+    },
+    __x_type_classifier: 'resource'  //TODO: a better way of tagging Resource instances!? Make it a class?
 });
 
 var create_resource = function(base_uri, attrs) {
