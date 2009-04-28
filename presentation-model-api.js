@@ -366,6 +366,9 @@ var RenderStrategy = Class.create({
     scope_name: function(scope) {
         return scope.join().gsub(/,/, '.');
     },
+    requires_primative_field: function(f) {
+        return Object.isPrimative(f) || (this.inline_array_fields && !(Object.isObject(f)))
+    },
     perform_rendering: function(context, template, scope) {
         if (Object.isArray(context)) {
             var results = [];
@@ -389,7 +392,7 @@ var RenderStrategy = Class.create({
         fields = this.display_fields(context);
         var field_templates = new Hash();
         fields.each(function(f) {
-            if (Object.isPrimative(context[f]) || self.inline_array_fields) {
+            if (self.requires_primative_field(context[f])) {
                 field_templates.set(f, self.require_template('field_template',
                                                              self.scope_name(new Array(scope.concat([f])))));
             }

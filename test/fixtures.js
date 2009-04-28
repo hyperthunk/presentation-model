@@ -315,9 +315,9 @@ var temp = function ($) {
             var strategy = new RenderStrategy({
                 inline_array_fields: true,
                 templates: {
-                    container:              '<div/>',
-                    field_template:         '<div>Contract #{$field.name}: #{$field.value}</div>',
-                    complex_field:          '<div/>'
+                    container:      '<div/>',
+                    field_template: '<div>Contract #{$field.name}: #{$field.value}</div>',
+                    complex_field:  '<div/>'
                 }
             });
             var content = strategy.render(subject).appendTo('#targetY');
@@ -331,6 +331,67 @@ var temp = function ($) {
                     '</div>' +
                 "</div>";
             equals($('#targetY').html(), expected_html);
+            ok(subject.ui('contract .type').text().match(/dubious/), 'Contract type rendered correctly');
+            ok(subject.ui('contract .rating').text().match(/85%/), 'Contract rating rendered correctly');
+            ok(subject.ui('contract .tags').text().match(/utility,power user/), 'Contract tags rendered correctly');
+        });
+
+        test('render should inject each component field using the correct template when generating complex field template output',
+             function() {
+            var subject = new TestResource({
+                id: function() { return 19236475; },
+                name: 'Freya',
+                age:  'Immortal',
+                widgets: {
+                    rss_feed: {
+                        uri: 'http://presentation-model/feeds/howcoolisthis.atom',
+                        name: 'cool-presentation-model'
+                    },
+                    blog_roll: {
+                        hyperthunk: 'http://hyperthunk.wordpress.com',
+                        rants: 'http://rants.ekanem.de',
+                        kerry: 'http://www.kerrybuckley.org'
+                    }
+                }
+            });
+            var strategy = new RenderStrategy({
+                inline_array_fields: true,
+                templates: {
+                    container: '<div/>',
+                    // this complex field template is the same as the literal equivalent '<div/>'
+                    complex_field_template: '<div>#{$fields}</div>',
+                    field_template: {
+                        anchor:   new Template('<div><a href="#{$field.value}">#{$field.name}</a></div>'),
+                        standard: new Template('<div>#{$field.value}</div>'),
+                        evaluate: function(data) {
+                            if (data.$field.value.match(/http:/)) {
+                                return this.anchor.evaluate(data);
+                            }
+                            return this.standard.evaluate(data);
+                        }
+                    }
+                }
+            });
+            var content = strategy.render(subject).appendTo('#targetZ');
+            var expected_html =
+                '<div id="19236475">' +
+                    '<div class="name">Freya</div>'  +
+                    '<div class="age">Immortal</div>'  +
+                    '<div class="widgets">' +
+                        '<div class="rss_feed">' +
+                            '<div class="uri">' +
+                                '<a href="http://presentation-model/feeds/howcoolisthis.atom">uri</a>' +
+                            '</div>' +
+                            '<div class="name">cool-presentation-model</div>' +
+                        '</div>' +
+                        '<div class="blog_roll">' +
+                            '<div class="hyperthunk"><a href="http://hyperthunk.wordpress.com">hyperthunk</a></div>' +
+                            '<div class="rants"><a href="http://rants.ekanem.de">rants</a></div>' +
+                            '<div class="kerry"><a href="http://www.kerrybuckley.org">kerry</a></div>' +
+                        '</div>' +
+                    '</div>' +
+                "</div>";
+            equals($('#targetZ').html(), expected_html);
         });
 
         /********************************************************************************************************
