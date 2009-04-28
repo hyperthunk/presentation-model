@@ -269,7 +269,7 @@ var RenderStrategy = Class.create({
         // do i need this?
         //this.initial_content = this.context;
     },
-    verify_template: function(template_name) {
+   /* verify_template: function(template_name) {
         var template = this[template_name];
         var template_exists = !Object.isUndefined(template) && Object.isFunction(template.evaluate);
         if (!template_exists) {
@@ -308,11 +308,15 @@ var RenderStrategy = Class.create({
             }
         }
         return false;
-    },
+    },*/
     gen_container_template: function(literal) {
         return {
             evaluate: function(data) {
-                return jQuery(literal).attr('id', data.id);
+                var jq = jQuery(literal)
+                if (data.id) {
+                    jq.attr('id', data.id);
+                }
+                return jq;
             }
         };
     },
@@ -348,7 +352,11 @@ var RenderStrategy = Class.create({
                 var fn = self['gen_' + template];
                 self[template] = fn.call(self, literal);
             } else {
-                self[template] = self.templates[template];
+                var supplied = self.templates[template];
+                if ((typeof supplied != 'undefined') && !(supplied instanceof Template)) {
+                    supplied = new Template(supplied);
+                }
+                self[template] = supplied;
             }
         });
     },
@@ -388,22 +396,41 @@ var RenderStrategy = Class.create({
         this.prepare_templates();
         return this.perform_rendering(this.object, this.container_template, []);
     },
+    scope_name: function(scope) {
+        return scope.join().gsub(/,/, '.');
+    },
     perform_rendering: function(context, template, scope) {
+        if (Object.isArray(context)) {
+            var results = [];
+            for (i = 0;i < context.length; i++) {
+                results.push(this.render_object({
+                    $field: {
+                        name: 'items index' + i,
+                        value: context[i]
+                    },
+                    $object: this.object
+                }, this.require_template('field_template', this.scope_name(scope))));
+            }
+            var container = jQuery('<div/>');
+            jQuery(results).appendTo(container);
+            return jQuery(template.evaluate({ $items: container.html(), $object: this.object }));
+        }
         var containment_output = this.render_object(context, template ||
-                                                    this.require_template('container_template', scope.join().gsub(/,/, '.')));
+                                                    this.require_template('container_template', this.scope_name(scope)));
         var fields = null;
         var self = this;
         fields = this.display_fields(context);
         var field_templates = new Hash();
         fields.each(function(f) {
             if (Object.isPrimative(context[f])) {
-                field_templates.set(f, self.require_template('field_template', new Array(scope.concat([f])).join().gsub(/,/, '.')));
+                field_templates.set(f, self.require_template('field_template',
+                                                             self.scope_name(new Array(scope.concat([f])))));
             }
         });
-        var innerHtml = [];
-        fields.inject(innerHtml, function(acc, binding) {
+        var content = [];
+        fields.inject(content, function(acc, binding) {
             var new_scope = new Array(scope.concat([binding]));
-            var scope_name = new_scope.join().gsub(/,/, '.');
+            var scope_name = self.scope_name(new_scope);
             var value = context[binding];
             if (Object.isArray(value)) {
                 field = self.perform_rendering(
@@ -426,7 +453,12 @@ var RenderStrategy = Class.create({
             acc.push(field);
             return acc;
         });
-        //TODO: continue with this.....
+        if (content.empty()) {
+            return container
+        } else {
+            jQuery(content).appendTo(containment_output);
+            return containment_output;
+        }
     },
     render_object: function(context, template) {
         return jQuery(template.evaluate(context));

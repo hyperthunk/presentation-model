@@ -168,7 +168,7 @@ var temp = function ($) {
             $("#bob .name").val(update).trigger('changed');
             equals(subject.name, update, "resetting object property based on event handler returned from renderTo");
         });
-        
+
         test('it should puke if you try to render without specifying an object', function() {
             jqMock.expectThatExceptionThrown(function() {
                     new RenderStrategy({}).render();
@@ -211,7 +211,7 @@ var temp = function ($) {
                 })
             );
 	});
-        
+
         test('it should puke if you try to render objects with no complex_field rule', function() {
             var contacts = [ 'foo.bar@gmail.com', 'a.b@c.com' ];
             jqMock.expectThatExceptionThrown(function() {
@@ -230,7 +230,7 @@ var temp = function ($) {
                     message: "RenderStrategy requires a [complex_field] rule or template for attribute [complex].",
                     type: IllegalOperationException
                 })
-            );                
+            );
         });
 
         test('it should puke if you try to render objects containing arrays with no multi_field rule', function() {
@@ -251,10 +251,10 @@ var temp = function ($) {
                     message: "RenderStrategy requires a [multi_field] rule or template for attribute [complex.contacts].",
                     type: IllegalOperationException
                 })
-            );                
+            );
         });
 
-        test('render should do X when field is an array', function() {
+        test('render should inject each item as a field when a containing field is an array', function() {
             var id = 'x909';
             var name = "Foo Bar";
             var age = '999';
