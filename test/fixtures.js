@@ -120,17 +120,19 @@ var temp = function ($) {
             equals(jQuery('#target1').html(), '<div id="1928374"></div>');
         });
 
-        test('renderAs function should create contain and fields using default templates when literals are given', function() {
+        test('renderAs function should create container and fields using default templates when literals are given', function() {
             var id = '12345';
             var name = "DWORD Smith";
             var age = 'Old as the hills';
-            var subject = new TestResource({ pk: id, name: name, age: age });
+            var subject = new TestResource({ id: id, name: name, age: age });
 
             var content = subject
                 .display('name', 'age')
                 .renderAs({
-                    container: '<ul/>',
-                    field:     '<li/>'
+                    templates: {
+                        container: '<ul/>',
+                        field:     '<li/>'
+                    }
                 }).appendTo('#target2');
             equals(jQuery('#target2').html(),
                 '<ul id="12345"><li class="name">DWORD Smith</li><li class="age">Old as the hills</li></ul>');
@@ -145,8 +147,10 @@ var temp = function ($) {
             var content = subject
                 .display('name', 'age')
                 .renderAs({
-                    container_template: '<ul id="#{id}"></ul>',
-                    field_template:     '<li parent="#{object.id}">#{field.value}</li>'
+                    templates: {
+                        container_template: '<ul id="#{$object.id}"></ul>',
+                        field_template:     '<li parent="#{$object.id}">#{$field.value}</li>'
+                    }
                 }).appendTo('#target3');
             equals(jQuery('#target3').html(),
                 '<ul id="12345"><li class="name" parent="12345">DWORD Smith</li><li class="age" parent="12345">Old as the hills</li></ul>');
@@ -155,10 +159,12 @@ var temp = function ($) {
         test("renderAs function should return a wrapped set of the new content", function() {
             var selector = '#testBinding5';
             var id = 'bob';
-            var subject = new TestResource({ pk: id, uri: 'foo', name: 'Bob Dillan' });
+            var subject = new TestResource({ id: id, uri: 'foo', name: 'Bob Dillan' });
             subject.display('name').renderAs({
-                container_template: '<form id="#{id}" method="POST" action="#{uri}></form>',
-                field:              '<input/>'
+                templates: {
+                    container_template: '<form id="#{$object.id}" method="POST" action="#{$object.uri}></form>',
+                    field:              '<input/>'
+                }
             }).appendTo(selector).bind('changed', function(e) {
                 subject.name = $(e.target).val();
                 return false;
@@ -169,6 +175,11 @@ var temp = function ($) {
             equals(subject.name, update, "resetting object property based on event handler returned from renderTo");
         });
 
+        /********************************************************************************************************
+         *      RenderStrategy Unit Tests
+         ********************************************************************************************************/
+
+        module('RenderStrategy Tests');
         test('it should puke if you try to render without specifying an object', function() {
             jqMock.expectThatExceptionThrown(function() {
                     new RenderStrategy({}).render();
@@ -343,10 +354,10 @@ var temp = function ($) {
         });
 
         test('refresh should update bound dom elements when a binding has taken place', function() {
-            var subject = new TestResource({ pk: 'subject197', name: 'Joe the Man', handle: 'jdm' });
+            var subject = new TestResource({ id: 'subject197', name: 'Joe the Man', handle: 'jdm' });
             subject.container('#test-container1');
             subject.display('name', 'handle')
-                   .renderAs({ container: '<div/>', field: '<input/>' })
+                   .renderAs({ templates: { container: '<div/>', field: '<input/>' } })
                    .appendTo('#test-container1');
 
             subject.name = 'Darth Vader';

@@ -266,55 +266,13 @@ var WebFacade = Class.create2(EventSink, {
 var RenderStrategy = Class.create({
     initialize: function(options) {
         jQuery.extend(this, options);
-        // do i need this?
-        //this.initial_content = this.context;
     },
-   /* verify_template: function(template_name) {
-        var template = this[template_name];
-        var template_exists = !Object.isUndefined(template) && Object.isFunction(template.evaluate);
-        if (!template_exists) {
-            this.fail_if_required(template_name);
-        }
-    },
-    fail_if_required: function(template_name, container) {
-        var requirement_checks = {
-            multi_field_template:   Object.isArray,
-            complex_field_template: Object.isObject
-        };
-        if (['container_template', 'field_template'].include(template_name)) {
-            throw new IllegalOperationException(
-                "RenderStrategy requires a rule or template for [#{item}].".interpolate({
-                    item: template_name.gsub(/_template/, '')
-                })
-            );
-        } else if (requirement_checks[template_name] != undefined) {
-            var self = this;
-            var fn = requirement_checks[template_name];
-            var matched = Object.keys(self.fields).detect(
-                function(field) {
-                    return (fn(self.fields[field]));
-                }
-            );
-            if (matched != undefined) {
-                var message = (Object.isString(matched)) ?
-                    "RenderStrategy requires a [#{item}] rule or template for attribute [#{matched}]." :
-                    "RenderStrategy requires a rule or template for [#{item}].";
-                throw new IllegalOperationException(
-                    message.interpolate({
-                        item: template_name.gsub(/_template/, ''),
-                        matched: matched
-                    })
-                );
-            }
-        }
-        return false;
-    },*/
     gen_container_template: function(literal) {
         return {
             evaluate: function(data) {
                 var jq = jQuery(literal)
-                if (data.id) {
-                    jq.attr('id', data.id);
+                if (data.$object && data.$object.id) {
+                    jq.attr('id', data.$object.id);
                 }
                 return jq;
             }
@@ -415,7 +373,7 @@ var RenderStrategy = Class.create({
             jQuery(results).appendTo(container);
             return jQuery(template.evaluate({ $items: container.html(), $object: this.object }));
         }
-        var containment_output = this.render_object(context, template ||
+        var containment_output = this.render_object({ $object: context }, template ||
                                                     this.require_template('container_template', this.scope_name(scope)));
         var fields = null;
         var self = this;
@@ -482,68 +440,11 @@ var Displayable = {
         if (Object.isString(options)) {
             // TODO: render the fields too?
             return jQuery(options).attr('id', this.getId());
-        }
-        var opts = $H(options).update({ object: '<div/>' });
-        var syntax = opts.get('syntax');  //undefined is ok as it is just ignored when compiling them
-        var handlers = [];
-        var self = this;
-        ['container', 'field'].inject(handlers, function(found, e) {
-            var option = opts.get(e);
-            if (!Object.isUndefined(option)) {
-                found.push({
-                    evaluate: function(data) {
-                        if (Object.keys(data).include('container')) {
-                            return jQuery(option).attr('id', data.id);
-                        } else {
-                            // TODO: deal with arrays
-                            var dom = jQuery(option);
-                            dom.text(data.field.value);
-                            dom.addClass(data.field.name);  //TODO: consider merging the container also!
-                            if (['input', 'option'].include(dom[0].tagName)) {
-                                dom.val(data.field.value);
-                            }
-                            return dom;
-                        }
-                    }
-                });
-            } else {
-                option = opts.get('#{item}_template'.interpolate({ item: e }));
-                if (Object.isUndefined(option)) {
-                    throw new IllegalOperationException("No literal or template supplied for #{item}".interpolate({ item: e }));
-                }
-                found.push(Object.isString(option) ? template(option, syntax) : option);
-            }
-            return found;
-        });
-        var container_template = handlers.shift();
-        var field_template = handlers.shift();
-        // TODO: add support for object-template
-        var innerHtml = this.display_fields.collect(function(binding) {
-            // TODO: add support for nested Resource classes using object-template
-            field = jQuery(
-                field_template.evaluate({
-                    field: {
-                        'name':   binding,
-                        'value':  self[binding]
-                    },
-                    object: self
-                })
-            );
-            if (!field.hasClass(binding)) {
-                field.addClass(binding);
-            }
-            return field;
-        });
-        var container = jQuery(container_template.evaluate({ id: this.getId(), container: true }));
-        var id = this.getId();
-        if (container.attr('id') != id) {
-            container.attr('id', id);
-        }
-        if (innerHtml.empty()) {
-            return container
+        } else if (options instanceof RenderStrategy) {
+            return options.render(this);
         } else {
-            jQuery(innerHtml).appendTo(container);
-            return container;
+            var strategy = new RenderStrategy(options);
+            return strategy.render(this);
         }
     },
     renderTo: function(selector, template) {
