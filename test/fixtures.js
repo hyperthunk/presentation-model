@@ -258,15 +258,16 @@ var temp = function ($) {
             var id = 'x909';
             var name = "Foo Bar";
             var age = '999';
-            var subject = { id: id, name: name, contacts: [ 'foo.bar@gmail.com', 'a.b@c.com' ] };
+            var subject = {
+                id: id,
+                name: name,
+                contacts: [ 'foo.bar@gmail.com', 'a.b@c.com' ],
+                display_fields: [ 'name', 'contacts' ]
+            };
             var contacts = subject.contacts;
 
             var strategy = new RenderStrategy({
                 object: subject,
-                fields: {
-                    name: name,
-                    contacts: contacts
-                },
                 templates: {
                     container:              '<ul/>',
                     field:                  '<li/>',
@@ -280,14 +281,14 @@ var temp = function ($) {
                     '<li class="contacts">'         +
                         '<div>'                     +
                             '<ul>'                  +
-                                '<li class="items index1">foo.bar@gmail.com</li>'    +
-                                '<li class="items index2">a.b@c.com</li>'            +
+                                '<li class="index0">foo.bar@gmail.com</li>'    +
+                                '<li class="index1">a.b@c.com</li>'            +
                             '</ul>'                 +
                         '</div>'                    +
                     '</li>'                         +
                 '</ul>');
-            equals($('#x909 .contacts .items .index1').text(), 'foo.bar@gmail.com');
-            equals($('#x909 .contacts .items .index2').text(), 'a.b@c.com');
+            equals($('#x909 .contacts .index0').text(), 'foo.bar@gmail.com');
+            equals($('#x909 .contacts .index1').text(), 'a.b@c.com');
         });
 
 
