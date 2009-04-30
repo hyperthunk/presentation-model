@@ -132,6 +132,8 @@ var template = function(html, syntax) {
 
 var running_on_old_browser = function() { return false; };
 
+// TODO: logging support!?
+
 /********************************************************************************************************
  *      Eventing - TODO: what is the pattern called again!?
  ********************************************************************************************************/
@@ -148,7 +150,7 @@ var Subscriber = Class.create2({
 
 var EventSink = {
     getSubscribers: function() {
-        if (Object.isArray(this.subscribers) == false) {
+        if (!Object.isArray(this.subscribers)) {
             this.subscribers = new Array();
         }
         return this.subscribers;
@@ -163,7 +165,6 @@ var EventSink = {
         return this;
     },
     publish: function(tag, data, context) {
-        // this is NOT a synchronized operation... :(
         this.getSubscribers()
             .select(function(e) { return e.name == tag; })
             .invoke('receive', tag, data, context || this);
@@ -263,9 +264,31 @@ var WebFacade = Class.create2(EventSink, {
  *      UI/DOM Integration based on jQuery
  ********************************************************************************************************/
 
-var RenderStrategy = Class.create({
+var attribute_keys = function(context) {
+    if (context.display_fields) {
+        return context.display_fields;
+    }
+    if (Object.isPrimative(context)) {
+        return [];
+    }
+    var attributes = Object.keys(context).select(function(e) {
+        return !Object.isFunction(context[e]);
+    });
+    if (context.__x_type_classifier == 'resource') {
+        return attributes.reject(function(e) {
+            return ['serializable', '__x_created_locally', '__x_type_classifier'].include(e);
+        });
+    } else {
+        return attributes;
+    }
+};
+
+var RenderStrategy = Class.create(EventSink, {
     initialize: function(options) {
         jQuery.extend(this, options);
+        // TODO: this coupling between RenderStrategy and Bindable could do with changing
+        this.bound = new Hash();
+        this.event_info = [null, null, null, null];
     },
     gen_container_template: function(literal) {
         return {
@@ -336,22 +359,7 @@ var RenderStrategy = Class.create({
         return template;
     },
     display_fields: function(context) {
-        if (context.display_fields) {
-            return context.display_fields;
-        }
-        if (Object.isPrimative(context)) {
-            return [];
-        }
-        var attributes = Object.keys(context).select(function(e) {
-            return !Object.isFunction(context[e]);
-        });
-        if (context.__x_type_classifier == 'resource') {
-            return attributes.reject(function(e) {
-                return ['__x_created_locally', 'serializable', '__x_type_classifier'].include(e);
-            });
-        } else {
-            return attributes;
-        }
+        return attribute_keys(context);
     },
     render: function(subject) {
         if (subject != undefined) {
@@ -371,22 +379,27 @@ var RenderStrategy = Class.create({
     },
     perform_rendering: function(context, template, scope) {
         if (Object.isArray(context)) {
+            var scope_name = this.scope_name(scope)
+            this.fire_render_event('on_array_render', scope, scope_name);
             var results = [];
             for (i = 0;i < context.length; i++) {
+                this.fire_render_event('on_array_item_render', scope_name, 'index' + i);
                 results.push(this.render_object({
                     $field: {
                         name: 'index' + i,
                         value: context[i]
                     },
                     $object: this.object
-                }, this.require_template('field_template', this.scope_name(scope))));
+                }, this.require_template('field_template', scope_name)));
             }
             var container = jQuery('<div/>');
             jQuery(results).appendTo(container);
             return jQuery(template.evaluate({ $items: container.html(), $object: this.object }));
         }
+        var scope_name = this.scope_name(scope);
+        this.fire_render_event('on_container_render', null, scope_name);
         var containment_output = this.render_object({ $object: context }, template ||
-                                                    this.require_template('container_template', this.scope_name(scope)));
+                                                    this.require_template('container_template', scope_name));
         var fields = null;
         var self = this;
         fields = this.display_fields(context);
@@ -428,6 +441,7 @@ var RenderStrategy = Class.create({
             if (!field.hasClass(binding)) {
                 field.addClass(binding);
             }
+            self.fire_render_event('on_field_render', binding, scope_name);
             acc.push(field);
             return acc;
         });
@@ -436,6 +450,16 @@ var RenderStrategy = Class.create({
         } else {
             jQuery(content).appendTo(containment_output);
             return containment_output;
+        }
+    },
+    fire_render_event: function(tag, binding, scope_name) {
+        this.event_info[0] = binding;
+        this.event_info[1] = scope_name;
+        try {
+            this.publish(tag, this.event_info); //oh for a tuple! :(
+        } catch (e) {
+            // TODO: make this work when we're not on firefox....
+            console.error(e);
         }
     },
     render_object: function(context, template) {
@@ -447,17 +471,6 @@ var Displayable = {
     display: function() {
         this.display_fields = Array.from(arguments);
         return this;
-    },
-    renderAs: function(options) {
-        if (Object.isString(options)) {
-            // TODO: render the fields too?
-            return jQuery(options).attr('id', this.getId());
-        } else if (options instanceof RenderStrategy) {
-            return options.render(this);
-        } else {
-            var strategy = new RenderStrategy(options);
-            return strategy.render(this);
-        }
     },
     renderTo: function(selector, template) {
         if (selector === undefined) {
@@ -474,18 +487,14 @@ var Displayable = {
         ws.html(dom);
         return dom;
     },
-    getTemplateInjectionProperties: function() {
-        var attrs = new Hash();
-        var self = this;
-        // TODO: maybe caching this would be a good idea!?
-        // Q: how to unify the need for caching this, with the knowledge of when the object becomes dirty ???
-        Object.keys(this).each(function(attr) {
-            attrs.set('object.' + attr, self[attr]);
-        });
-        return attrs;
-    },
     toHTML: function() {
-        return this.template.evaluate(this);
+        if (this.template) {
+            return this.template.evaluate(this);
+        } else {
+            var container = jQuery('<div/>');
+            this.renderAs("<div/>").appendTo(container);
+            return container.html();
+        }
     },
     getId: function() {
         if (this.id) {
@@ -496,7 +505,69 @@ var Displayable = {
     }
 };
 
+var BindingContext = Class.create({
+    initialize: function(bindable, scope, parent) {
+        this._context = bindable;
+        this._scope = scope || this._context.getId();
+        this.container = parent;
+        var self = this;
+        attribute_keys(this._context).each(function(key) {
+            self[key] = new BindingContext(self._context[key], key, self);
+        });
+        var selector = [];
+        var naming_container = this;
+        while (naming_container != undefined) {
+            selector.push(naming_container._scope);
+            naming_container = naming_container.container;
+        }
+        this.selector = '#' + selector.reverse().join(' > .');
+    },
+    ui: function() {
+        return jQuery(this.selector);
+    }
+});
+
 var Bindable = Module.create(Displayable, {
+    databinding: function() {
+        if (this.binding_context != undefined) {
+            return this.binding_context;
+        }
+        this.binding_context = new BindingContext();
+        return this.binding_context;
+    },
+    renderAs: function(options) {
+        var strategy = undefined;
+        if (Object.isString(options)) {
+            // TODO: render the fields too?
+            return jQuery(options).attr('id', this.getId());
+        } else if (options instanceof RenderStrategy) {
+            strategy = options;
+        } else {
+            var strategy = new RenderStrategy(options);
+        }
+        /*var binding_context = this.databinding();
+        var current_scope = binding_context;
+        var handler = function(tag, data, context) {
+            [binding, scope_name] = data;
+            if (tag.match(/field/)) {
+                current_scope.add_field(binding)
+            }
+        };
+        var field_handler = strategy.register('on_field_render', handler);
+        var container_handler = strategy.register('on_container_render', handler);
+        var array_handler = strategy.register('on_array_render', handler);
+        var array_item_handler = strategy.register('on_array_item_render', handler);*/
+
+        return strategy.render(this);
+
+        /*try {
+            return strategy.render(this);
+        } finally {
+            [field_handler, container_handler, array_handler, array_item_handler].each(function(e) {
+                strategy.unregister(e);
+            });
+        }*/
+    },
     container: function() {
         var selector = arguments[0];
         if (selector != undefined) {
@@ -505,9 +576,12 @@ var Bindable = Module.create(Displayable, {
         }
         return jQuery(this.selector());
     },
-    selector: function() {
+    selector: function(location) {
         var id = this.getId();
-        return "#{loc} ##{id}".interpolate({loc: this.dom_container || '', id: id});
+        return "#{loc} ##{id}".interpolate({
+            loc: location || (this.dom_container || ''),
+            id: id
+        });
     },
     update: function() {
         var self = this;
@@ -520,18 +594,35 @@ var Bindable = Module.create(Displayable, {
         var self = this;
         var bindings = this.display_fields || Array.from(arguments);
         this.eachBinding(bindings, function(binding) {
-            binding.val(self[binding.data('fieldname')]);
+            self.refresh_bindings(binding);
         });
+    },
+    refresh_bindings: function(binding) {
+        var self = this;
+        var obj = this[binding];
+        if (Object.isObject(obj)) {
+            // TODO: munge the attribute_keys to include the current binding scope
+            var keys = attribute_keys(obj).collect(function(attr) {
+                return binding + '.' + attr;
+            });
+            self.eachBinding(keys, function(binding) {
+                self.refresh_bindings(binding);
+            });
+        }
+        binding.val(this[binding.data('fieldname')]);
     },
     eachBinding: function(bindings, op) {
         //NB: op is only applied to bindings that actually exist!
         var self = this;
         bindings.collect(function(f) {
+            // TODO: construct scope < .class < etc....
             var field = '.' + f;
             binding = jQuery(field, self.container());
-            if (binding.length > 0) {
+            if (binding.length == 1) {
                 binding.data('fieldname', f);
                 return binding;
+            } else if (binding.length > 1) {
+                throw new IllegalOperationException("Unable to locate a singleton binding for field [" + f + "]");
             } else { return null; }
         }).compact().each(op);
     },
@@ -547,6 +638,9 @@ var Bindable = Module.create(Displayable, {
         } else {
             return this.container();
         }
+    },
+    bindings: function() {
+
     }
 });
 

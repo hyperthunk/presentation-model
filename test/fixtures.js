@@ -372,7 +372,7 @@ var temp = function ($) {
                     }
                 }
             });
-            var content = strategy.render(subject).appendTo('#targetZ');
+            var content = subject.renderAs(strategy).appendTo('#targetZ');
             var expected_html =
                 '<div id="19236475">' +
                     '<div class="name">Freya</div>'  +
@@ -397,8 +397,47 @@ var temp = function ($) {
         /********************************************************************************************************
          *      Bindable Unit Tests
          ********************************************************************************************************/
-
         module('Bindable Tests');
+        test('binding context should support attributes for each field', function() {
+            var subject = new TestResource({ id: 'id', name: 'foo', occupation: 'bar' });
+            var bindings = new BindingContext(subject);
+            equals(bindings.name.selector, '#id > .name');
+            equals(bindings.occupation.selector, '#id > .occupation');
+            equals(bindings.name.container, bindings);
+            equals(bindings.occupation.container, bindings);
+        });
+
+        test('binding context should create a structure representing that of the contained object', function() {
+            var subject = new TestResource({
+                id:   'id',
+                name: 'name',
+                complex: {
+                    name: 'name',
+                    age:  21,
+                    links: {
+                        one: 'http://link.one.com',
+                        two: 'http://link.two.com'
+                    }
+                }
+            });
+            var bindings = new BindingContext(subject);
+            equals(bindings.complex.name.selector, '#id > .complex > .name');
+            equals(bindings.complex.links.two.selector, '#id > .complex > .links > .two');
+        });
+
+        test('binding context should return jQuery object given the correct selector', function() {
+            var mockJQ = new jqMock.Mock(window, 'jQuery');
+            var expected_selector = '#id > .transport';
+            try {
+                mockJQ.modify().args(expected_selector).multiplicity(1);
+                var subject = new TestResource({ id: 'id', transport: 'air' });
+                var bindings = new BindingContext(subject);
+                ok(bindings.transport.ui().jquery != undefined);
+            } finally {
+                mockJQ.verify();
+                mockJQ.restore();
+            }
+        });
 
         test('update function should pull new values from inputs based on attributes', function() {
             var form_template =
@@ -457,6 +496,46 @@ var temp = function ($) {
             subject.refreshUI();
             equals(subject.ui('name').val(), subject.name);
             equals(subject.ui('handle').val(), subject.handle);
+        });
+
+        test('update should support arbitrarilly complex object graphs', function() {
+            // TODO: test this.....
+            var subject = new TestResource({
+                id: 16277739,
+                name: 'foobar',
+                complex1: {
+                    name: 'nest level 1',
+                    to_change: 'hello world',
+                    complex2: {
+                        name: 'nest level 2',
+                        to_change: 'hello javascript',
+                        complex3: {
+                            name: 'nest level 3',
+                            to_change: 'hello jQuery',
+                            more_fun: ['hello', 'array']
+                        }
+                    }
+                }
+            }).display('name', 'complex1');
+            subject.renderAs({
+                templates: {
+                    container:      '<div/>',
+                    field:          '<div/>',
+                    multi_field:    '<div/>',
+                    complex_field:  '<div/>'
+                }
+            }).appendTo('#foobar-test-container');
+
+            subject.binding('complex1.to_change').text('goodbye world');
+            subject.binding('complex1.complex2.to_change').text('goodbye javascript');
+            subject.binding('complex1.complex2.complex3.to_change').text('goodbye jQuery');
+
+            subject.update();
+
+            equals(subject.complex1.to_change, 'goodbye world');
+            equals(subject.complex1.to_change, 'goodbye world');
+            equals(subject.complex1.complex2.to_change, 'goodbye javascript');
+            equals(subject.complex1.complex2.complex3.to_change, 'goodbye jQuery');
         });
 
         /********************************************************************************************************
