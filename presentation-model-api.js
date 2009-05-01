@@ -506,6 +506,7 @@ var Displayable = {
 };
 
 var BindingContext = Class.create({
+    __ignore: ['_context', '_scope', 'container', 'selector', '__ignore'],
     initialize: function(bindable, scope, parent) {
         this._context = bindable;
         this._scope = scope || this._context.getId();
@@ -524,6 +525,11 @@ var BindingContext = Class.create({
     },
     ui: function() {
         return jQuery(this.selector);
+    },
+    children: function() {
+        return attribute_keys(this).select(function(item) {
+            return (item instanceof BindingContext || (!this.__ignore.include(item)));
+        }, this);
     }
 });
 

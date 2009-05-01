@@ -433,10 +433,23 @@ var temp = function ($) {
                 var subject = new TestResource({ id: 'id', transport: 'air' });
                 var bindings = new BindingContext(subject);
                 ok(bindings.transport.ui().jquery != undefined);
-            } finally {
                 mockJQ.verify();
+            } finally {
                 mockJQ.restore();
             }
+        });
+
+        test('binding context should return its bound children on demand', function() {
+            var subject = new TestResource({
+                id:   'excluded',
+                name: 'foobar',
+                groups: {
+                    name: 'name',
+                    age:  21
+                }
+            }).display('name', 'groups');
+            var bindings = new BindingContext(subject);
+            equals(bindings.children().size(), 2);
         });
 
         test('update function should pull new values from inputs based on attributes', function() {
