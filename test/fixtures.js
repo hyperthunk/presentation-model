@@ -331,9 +331,9 @@ var temp = function ($) {
                     '</div>' +
                 "</div>";
             equals($('#targetY').html(), expected_html);
-            ok(subject.ui('contract .type').text().match(/dubious/), 'Contract type rendered correctly');
-            ok(subject.ui('contract .rating').text().match(/85%/), 'Contract rating rendered correctly');
-            ok(subject.ui('contract .tags').text().match(/utility,power user/), 'Contract tags rendered correctly');
+            ok(subject.bindings().contract.type.ui().text().match(/dubious/), 'Contract type rendered correctly');
+            ok(subject.bindings().contract.rating.ui().text().match(/85%/), 'Contract rating rendered correctly');
+            ok(subject.bindings().contract.tags.ui().text().match(/utility,power user/), 'Contract tags rendered correctly');
         });
 
         test('render should inject each component field using the correct template when generating complex field template output',
@@ -524,6 +524,24 @@ var temp = function ($) {
             }
         });
 
+        test('binding context should refresh the ui with the current context value', function() {
+            var subject = new TestResource({ id: 'foo', name: 'Anton' });
+            var bindings = subject.bindings();
+
+            subject.display('name').renderAs({ templates: {
+                container:  '<div/>',
+                field:      '<div/>'
+            }}).appendTo(jQuery('#binding-container'));
+
+            subject.name = 'freddy';
+            bindings.refresh();
+            equals(bindings.name.ui().text(), 'freddy');
+        });
+
+        test('bindings should return the binding context', function() {
+            jqMock.assertThat(new TestResource().bindings(), is.instanceOf(BindingContext));
+        });
+
         test('update function should pull new values from inputs based on attributes', function() {
             var form_template =
                 new Template(
@@ -537,11 +555,14 @@ var temp = function ($) {
             var age = 'Deceased';
             var subject = new TestResource({ id: id, name: name, age: age });
 
-            var content = subject.renderTo('#test-form', form_template).addClass('someCSS');
+            var content = subject
+                .display('name', 'age')
+                .renderTo('#test-form', form_template)
+                .addClass('someCSS');
 
             jQuery('#submit-button', content)
                 .one('click', function() {
-                    subject.update('name', 'age');
+                    subject.bindings().update();
                     return false;
                 });
 
@@ -559,13 +580,13 @@ var temp = function ($) {
 
         test('update should silently ignore you if no binding was specified', function() {
             var subject = new TestResource({ pk: 'xyz', name: 'foobar' });
-            subject.update('name');  //if this really happend, the call to binding.val() would place '' or undefined in the name attribute
+            subject.bindings().update('name');  //if this really happend, the call to binding.val() would place '' or undefined in the name attribute
             equals(subject.name, 'foobar');
         });
 
         test('refresh should silently ignore you if no binding was specified', function() {
-            var subject = new TestResource();
-            subject.refreshUI();
+            var subject = new TestResource({ id: 'foobar' });
+            subject.refresh();
         });
 
         test('refresh should update bound dom elements when a binding has taken place', function() {
@@ -578,9 +599,9 @@ var temp = function ($) {
             subject.name = 'Darth Vader';
             subject.handle = 'ManNamedSue';
 
-            subject.refreshUI();
-            equals(subject.ui('name').val(), subject.name);
-            equals(subject.ui('handle').val(), subject.handle);
+            subject.refresh();
+            equals(subject.bindings().name.ui().val(), subject.name);
+            equals(subject.bindings().handle.ui().val(), subject.handle);
         });
 
         test('update should support arbitrarilly complex object graphs', function() {
@@ -611,9 +632,9 @@ var temp = function ($) {
                 }
             }).appendTo('#foobar-test-container');
 
-            subject.binding('complex1.to_change').text('goodbye world');
-            subject.binding('complex1.complex2.to_change').text('goodbye javascript');
-            subject.binding('complex1.complex2.complex3.to_change').text('goodbye jQuery');
+            subject.bindings().complex1.to_change.ui().text('goodbye world');
+            subject.bindings().complex1.complex2.to_change.ui().text('goodbye javascript');
+            subject.bindings().complex1.complex2.complex3.to_change.ui().text('goodbye jQuery');
 
             subject.update();
 

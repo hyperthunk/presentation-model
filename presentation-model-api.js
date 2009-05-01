@@ -309,7 +309,7 @@ var RenderStrategy = Class.create(EventSink, {
                 var dom = jQuery(literal);
                 dom.text(data.$field.value);
                 dom.addClass(data.$field.name);
-                if (['input', 'option'].include(dom[0].tagName)) {
+                if (['input', 'option'].include(dom[0].tagName.toLowerCase())) {
                     dom.val(data.$field.value);
                 }
                 return dom;
@@ -528,21 +528,41 @@ var BindingContext = Class.create({
     },
     update: function() {
         // TODO: deal with composite bound objects
-        var children = this.children();
-        if (children.empty()) {
-            var value = undefined, dom = this.ui();
-            if (['input', 'option'].include(dom[0].tagName)) {
+        this.walk(function(binding) {
+            var value = undefined, dom = binding.ui();
+            if (dom.size() == 0) return value;
+            if (['input', 'option'].include(dom[0].tagName.toLowerCase())) {
                 value = dom.val();
             } else {
                 // TODO: support for declarative value lookups
                 value = dom.text();
             }
             if (value != undefined) {
-                return this.container._context[this._scope] = value;
+                return binding.container._context[binding._scope] = value;
             }
             throw new IllegalOperationException("Unable to update UI binding for " + this.selector);
+        });
+    },
+    refresh: function() {
+        this.walk(function(binding) {
+            var dom = binding.ui();
+            if (dom.size() == 0) return undefined;
+            if (['input', 'option'].include(dom[0].tagName.toLowerCase())) {
+                return dom.val(binding.container._context[binding._scope]);
+            } else {
+                // TODO: support for declarative value lookups
+                return dom.text(binding.container._context[binding._scope]);
+            }
+            throw new IllegalOperationException("Unable to update UI binding for " + this.selector);
+        });
+    },
+    walk: function(fn) {
+        // TODO:
+        var children = this.children();
+        if (children.empty()) {
+            return fn(this);
         } else {
-            return children.invoke('update');
+            return children.invoke('walk', fn);
         }
     },
     children: function() {
@@ -555,13 +575,6 @@ var BindingContext = Class.create({
 });
 
 var Bindable = Module.create(Displayable, {
-    databinding: function() {
-        if (this.binding_context != undefined) {
-            return this.binding_context;
-        }
-        this.binding_context = new BindingContext(this);
-        return this.binding_context;
-    },
     renderAs: function(options) {
         var strategy = undefined;
         if (Object.isString(options)) {
@@ -572,28 +585,7 @@ var Bindable = Module.create(Displayable, {
         } else {
             var strategy = new RenderStrategy(options);
         }
-        /*var binding_context = this.databinding();
-        var current_scope = binding_context;
-        var handler = function(tag, data, context) {
-            [binding, scope_name] = data;
-            if (tag.match(/field/)) {
-                current_scope.add_field(binding)
-            }
-        };
-        var field_handler = strategy.register('on_field_render', handler);
-        var container_handler = strategy.register('on_container_render', handler);
-        var array_handler = strategy.register('on_array_render', handler);
-        var array_item_handler = strategy.register('on_array_item_render', handler);*/
-
         return strategy.render(this);
-
-        /*try {
-            return strategy.render(this);
-        } finally {
-            [field_handler, container_handler, array_handler, array_item_handler].each(function(e) {
-                strategy.unregister(e);
-            });
-        }*/
     },
     container: function() {
         var selector = arguments[0];
@@ -610,64 +602,14 @@ var Bindable = Module.create(Displayable, {
             id: id
         });
     },
-    update: function() {
-        var self = this;
-        var bindings = this.display_fields || Array.from(arguments);
-        this.eachBinding(bindings, function(binding) {
-            self[binding.data('fieldname')] = binding.val();
-        });
-    },
-    refreshUI: function() {
-        var self = this;
-        var bindings = this.display_fields || Array.from(arguments);
-        this.eachBinding(bindings, function(binding) {
-            self.refresh_bindings(binding);
-        });
-    },
-    refresh_bindings: function(binding) {
-        var self = this;
-        var obj = this[binding];
-        if (Object.isObject(obj)) {
-            // TODO: munge the attribute_keys to include the current binding scope
-            var keys = attribute_keys(obj).collect(function(attr) {
-                return binding + '.' + attr;
-            });
-            self.eachBinding(keys, function(binding) {
-                self.refresh_bindings(binding);
-            });
-        }
-        binding.val(this[binding.data('fieldname')]);
-    },
-    eachBinding: function(bindings, op) {
-        //NB: op is only applied to bindings that actually exist!
-        var self = this;
-        bindings.collect(function(f) {
-            // TODO: construct scope < .class < etc....
-            var field = '.' + f;
-            binding = jQuery(field, self.container());
-            if (binding.length == 1) {
-                binding.data('fieldname', f);
-                return binding;
-            } else if (binding.length > 1) {
-                throw new IllegalOperationException("Unable to locate a singleton binding for field [" + f + "]");
-            } else { return null; }
-        }).compact().each(op);
-    },
-    fieldSelector: function(field) {
-        return '##{id} .#{field}'.interpolate({
-            field: field,
-            id:    this.getId()
-        });
-    },
-    ui: function(attribute) {
-        if (attribute != undefined) {
-            return jQuery(this.fieldSelector(attribute));
-        } else {
-            return this.container();
-        }
-    },
+    update: function() { return this.bindings().update(); },
+    refresh: function() { return this.bindings().refresh(); },
     bindings: function() {
-
+        if (this.binding_context != undefined) {
+            return this.binding_context;
+        }
+        this.binding_context = new BindingContext(this);
+        return this.binding_context;
     }
 });
 
