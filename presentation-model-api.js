@@ -81,7 +81,7 @@ Object.extend(String.prototype, {
     urljoin: function(other) {
         return this.urltrim() + '/' + other.urltrim();
     },
-    toDjangoUrlFormat: function() {
+    toDjangoUrlFormat: function() { // TODO: rename this or pull it out into django-api.js
         return this.endsWith('/') ? this : this + '/';
     }
 });
@@ -380,10 +380,8 @@ var RenderStrategy = Class.create(EventSink, {
     perform_rendering: function(context, template, scope) {
         if (Object.isArray(context)) {
             var scope_name = this.scope_name(scope)
-            this.fire_render_event('on_array_render', scope, scope_name);
             var results = [];
             for (i = 0;i < context.length; i++) {
-                this.fire_render_event('on_array_item_render', scope_name, 'index' + i);
                 results.push(this.render_object({
                     $field: {
                         name: 'index' + i,
@@ -397,7 +395,6 @@ var RenderStrategy = Class.create(EventSink, {
             return jQuery(template.evaluate({ $items: container.html(), $object: this.object }));
         }
         var scope_name = this.scope_name(scope);
-        this.fire_render_event('on_container_render', null, scope_name);
         var containment_output = this.render_object({ $object: context }, template ||
                                                     this.require_template('container_template', scope_name));
         var fields = null;
@@ -441,7 +438,6 @@ var RenderStrategy = Class.create(EventSink, {
             if (!field.hasClass(binding)) {
                 field.addClass(binding);
             }
-            self.fire_render_event('on_field_render', binding, scope_name);
             acc.push(field);
             return acc;
         });
@@ -450,16 +446,6 @@ var RenderStrategy = Class.create(EventSink, {
         } else {
             jQuery(content).appendTo(containment_output);
             return containment_output;
-        }
-    },
-    fire_render_event: function(tag, binding, scope_name) {
-        this.event_info[0] = binding;
-        this.event_info[1] = scope_name;
-        try {
-            this.publish(tag, this.event_info); //oh for a tuple! :(
-        } catch (e) {
-            // TODO: make this work when we're not on firefox....
-            console.error(e);
         }
     },
     render_object: function(context, template) {
@@ -521,6 +507,7 @@ var BindingContext = Class.create({
             selector.push(naming_container._scope);
             naming_container = naming_container.container;
         }
+        //TODO: explode if there's no selectable attribtues for a jQuery selector expression to use
         this.selector = '#' + selector.reverse().join(' > .');
     },
     ui: function() {
@@ -557,7 +544,6 @@ var BindingContext = Class.create({
         });
     },
     walk: function(fn) {
-        // TODO:
         var children = this.children();
         if (children.empty()) {
             return fn(this);
