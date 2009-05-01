@@ -452,6 +452,78 @@ var temp = function ($) {
             equals(bindings.children().size(), 2);
         });
 
+        test("binding context should use jQuery object to its context's fields", function() {
+            var retval = jQuery.extend([{ tagName: 'option' }], { val: function() { return 'water'; } });
+            var mockJQ = new jqMock.Mock(window, 'jQuery');
+            try {
+                mockJQ.modify()
+                    .args(is.anything)
+                    .returnValue(retval);
+                var subject = new TestResource({ id: 'id', transport: 'air' }).display('transport');
+                var bindings = new BindingContext(subject);
+
+                bindings.transport.update();
+                equals(subject.transport, 'water');
+                mockJQ.verify();
+            } finally {
+                mockJQ.restore();
+            }
+        });
+
+        test("binding context should update children if there are any", function() {
+            var retval = jQuery.extend([{ tagName: 'input' }], { val: function() { return 'bar'; } });
+            var mockJQ = new jqMock.Mock(window, 'jQuery');
+            try {
+                mockJQ.modify()
+                    .args('#id > .complex > .name')
+                    .returnValue(retval);
+                var subject = new TestResource({
+                    id: 'id',
+                    complex: {
+                        name: 'foo'
+                    }
+                }).display('complex');
+                var bindings = new BindingContext(subject);
+
+                bindings.complex.update();
+                equals(subject.complex.name, 'bar');
+                mockJQ.verify();
+            } finally {
+                mockJQ.restore();
+            }
+        });
+
+        test('binding context should use jQuery.val() for options and text for other elements', function() {
+            var updated = { val: function() { return 'updated'; } };
+            var input = jQuery.extend([{ tagName: 'input' }], updated);
+            var option = jQuery.extend([{ tagName: 'option' }], updated);
+            var div = jQuery.extend([{ tagName: 'DIV' }], { text: function(){ return 'updated'; } });
+            var mockJQ = new jqMock.Mock(window, 'jQuery');
+            try {
+                mockJQ.modify().args('#id > .name').returnValue(div);
+                mockJQ.modify().args('#id > .options > .speed').returnValue(input);
+                mockJQ.modify().args('#id > .options > .strength').returnValue(option);
+
+                var subject = new TestResource({
+                    id: 'id',
+                    name: 'character1',
+                    options: {
+                        speed:    92,
+                        strength: 50
+                    }
+                }).display('name', 'options');
+                var bindings = new BindingContext(subject);
+
+                bindings.update();
+                equals(subject.name, 'updated');
+                equals(subject.options.speed, 'updated');
+                equals(subject.options.strength, 'updated');
+                mockJQ.verify();
+            } finally {
+                mockJQ.restore();
+            }
+        });
+
         test('update function should pull new values from inputs based on attributes', function() {
             var form_template =
                 new Template(

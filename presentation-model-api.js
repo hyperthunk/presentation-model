@@ -526,9 +526,30 @@ var BindingContext = Class.create({
     ui: function() {
         return jQuery(this.selector);
     },
+    update: function() {
+        // TODO: deal with composite bound objects
+        var children = this.children();
+        if (children.empty()) {
+            var value = undefined, dom = this.ui();
+            if (['input', 'option'].include(dom[0].tagName)) {
+                value = dom.val();
+            } else {
+                // TODO: support for declarative value lookups
+                value = dom.text();
+            }
+            if (value != undefined) {
+                return this.container._context[this._scope] = value;
+            }
+            throw new IllegalOperationException("Unable to update UI binding for " + this.selector);
+        } else {
+            return children.invoke('update');
+        }
+    },
     children: function() {
         return attribute_keys(this).select(function(item) {
             return (item instanceof BindingContext || (!this.__ignore.include(item)));
+        }, this).collect(function(f) {
+            return this[f];
         }, this);
     }
 });
@@ -538,7 +559,7 @@ var Bindable = Module.create(Displayable, {
         if (this.binding_context != undefined) {
             return this.binding_context;
         }
-        this.binding_context = new BindingContext();
+        this.binding_context = new BindingContext(this);
         return this.binding_context;
     },
     renderAs: function(options) {
