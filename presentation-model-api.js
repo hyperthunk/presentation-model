@@ -5,14 +5,14 @@ All rights reserved.
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-    * Redistributions of source code must retain the above copyright notice,
-      this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright notice,
-      this list of conditions and the following disclaimer in the documentation
-      and/or other materials provided with the distribution.
-    * Neither the name of the author nor the names of its contributors
-      may be used to endorse or promote products derived from this software
-      without specific prior written permission.
+* Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+* Neither the name of the author nor the names of its contributors
+may be used to endorse or promote products derived from this software
+without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -29,8 +29,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 // basic outline of a presentation model in javascript
 
 /********************************************************************************************************
- *      Prototype extensions and utilities
- ********************************************************************************************************/
+* Prototype extensions and utilities
+********************************************************************************************************/
 
 Object.extend(Class, {
     create2: function() {
@@ -135,8 +135,8 @@ var running_on_old_browser = function() { return false; };
 // TODO: logging support!?
 
 /********************************************************************************************************
- *      Eventing - TODO: what is the pattern called again!?
- ********************************************************************************************************/
+* Eventing - TODO: what is the pattern called again!?
+********************************************************************************************************/
 
 var Subscriber = Class.create2({
     initialize: function(name, callback) {
@@ -173,8 +173,8 @@ var EventSink = {
 };
 
 /********************************************************************************************************
- *      HTTP/AJAX Utilities
- ********************************************************************************************************/
+* HTTP/AJAX Utilities
+********************************************************************************************************/
 
 // TODO: use http response code to determine refresh behavior(s)
 
@@ -217,7 +217,7 @@ var WebFacade = Class.create2(EventSink, {
     },
     PUT: function(options) {
         var result = undefined;
-	var self = this;
+  var self = this;
         var opts = new Hash(
             defaults(this.ajax_options('PUT', false, {
                 success: function(data) {
@@ -242,10 +242,10 @@ var WebFacade = Class.create2(EventSink, {
     },
     ajax_options: function(method, async, handlers) {
         var opts = jQuery.extend({
-            url:        this.uri,
-            type:       default_value(method, 'GET'),
-            async:      default_value(async,  false),
-            dataType:   'json'
+            url: this.uri,
+            type: default_value(method, 'GET'),
+            async: default_value(async, false),
+            dataType: 'json'
         }, default_value(handlers, {}));
 
         if (running_on_old_browser() == true) {
@@ -261,8 +261,8 @@ var WebFacade = Class.create2(EventSink, {
 });
 
 /********************************************************************************************************
- *      UI/DOM Integration based on jQuery
- ********************************************************************************************************/
+* UI/DOM Integration based on jQuery
+********************************************************************************************************/
 
 var attribute_keys = function(context) {
     if (context.display_fields) {
@@ -294,11 +294,12 @@ var RenderStrategy = Class.create(EventSink, {
         return {
             evaluate: function(data) {
                 var jq = jQuery(literal)
-                if (data.$object && data.$object.id) {
+                /*if (data.$object && data.$object.id) {
+                    //TODO: use gen_id instead....
                     var id_field = data.$object.id;
                     var id = (Object.isFunction(id_field)) ? id_field.call(data.$object) : id_field;
                     jq.attr('id', id);
-                }
+                }*/
                 return jq;
             }
         };
@@ -397,6 +398,11 @@ var RenderStrategy = Class.create(EventSink, {
         var scope_name = this.scope_name(scope);
         var containment_output = this.render_object({ $object: context }, template ||
                                                     this.require_template('container_template', scope_name));
+        if (scope.empty()) {
+            containment_output.attr('id', this.gen_id());
+            containment_output.data("bound_object", this.object);
+        }
+
         var fields = null;
         var self = this;
         fields = this.display_fields(context);
@@ -429,7 +435,7 @@ var RenderStrategy = Class.create(EventSink, {
             } else {
                 field = self.render_object({
                     $field: {
-                        name:  binding,
+                        name: binding,
                         value: value
                     },
                     $object: context
@@ -447,6 +453,10 @@ var RenderStrategy = Class.create(EventSink, {
             jQuery(content).appendTo(containment_output);
             return containment_output;
         }
+    },
+    gen_id: function() {
+        var id_field = this.object.id;
+        return (Object.isFunction(id_field)) ? id_field.call(this.object) : id_field;
     },
     render_object: function(context, template) {
         return jQuery(template.evaluate(context));
@@ -600,8 +610,8 @@ var Bindable = Module.create(Displayable, {
 });
 
 /********************************************************************************************************
- *      RESTful Resource representation and utilities
- ********************************************************************************************************/
+* RESTful Resource representation and utilities
+********************************************************************************************************/
 
 var ResourceConfigurationException = function(msg) {
     return new Error(msg);
@@ -653,7 +663,7 @@ var Resource = Module.create(EventSink, {
         }
         return this.constructor.service;
     },
-    __x_type_classifier: 'resource'  //TODO: a better way of tagging Resource instances!? Make it a class?
+    __x_type_classifier: 'resource' //TODO: a better way of tagging Resource instances!? Make it a class?
 });
 
 var create_resource = function(base_uri, attrs) {
