@@ -282,7 +282,7 @@ var temp = function ($) {
                 templates: {
                     container:              '<ul/>',
                     field:                  '<li/>',
-                    multi_field_template:   '<div><ul>#{$items}</ul></div>'
+                    multi_field_template:   '<li><div><ul>#{$items}</ul></div></li>'
                 }
             });
             var content = strategy.render().appendTo('#targetX');

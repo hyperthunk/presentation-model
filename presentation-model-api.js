@@ -419,16 +419,16 @@ var RenderStrategy = Class.create(EventSink, {
             var scope_name = self.scope_name(new_scope);
             var value = context[binding];
             if (!self.inline_array_fields && Object.isArray(value)) {
-                var items = self.perform_rendering(value,
+                field = self.perform_rendering(value,
                                                    self.require_template('multi_field_template', scope_name), new_scope);
                 //TODO: this feels like a bit of a hack - some refactoring is needed to make it smell less
-                field = jQuery(self.require_template('field_template').evaluate({
+                /*field = jQuery(self.require_template('field_template').evaluate({
                     $field: {
                         name: binding, value: ''
                     },
                     $object: self.object
                 }));
-                items.appendTo(field);
+                items.appendTo(field);*/
             } else if (Object.isObject(value)) {
                 field = self.perform_rendering(
                     value, self.require_template('complex_field_template', scope_name), new_scope);
