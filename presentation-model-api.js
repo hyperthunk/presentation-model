@@ -203,6 +203,7 @@ var WebFacade = Class.create2(EventSink, {
         var opts = new Hash(
             defaults(this.ajax_options('GET', false, {
                 success: function(data) {
+                    data = data || [];
                     data['__x_created_locally'] = false;
                     result = self.create(data);
                 }
