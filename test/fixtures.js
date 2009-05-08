@@ -534,7 +534,9 @@ var temp = function ($) {
             
             subject.renderAs({
                 templates: {
-                    container_template: '<form method="POST" action="#{$object.uri}"><div class="mr_wibble"><div class="wizard"/></div></form>',
+                    container_template: '<form method="POST" action="#{$object.uri}">' +
+                                            '<div class="mr_wibble"><div class="wizard"/></div>' +
+                                        '</form>',
                     field_template:     '<div><label>#{$field.name}</label>' +
                                             '<input class="#{$field.name}" type="text" value="#{$field.value}"/>' +
                                         '</div>'
@@ -543,8 +545,6 @@ var temp = function ($) {
             
             equals(subject.bindings().wizard.ui()[0].tagName.toLowerCase(), 'input');
         });
-        
-        //TODO: another test case for this collision detection is needed!
         
         test('binding context should refresh the ui with the current context value', function() {
             var subject = new TestResource({ id: 'foo', name: 'Anton' });
@@ -760,56 +760,37 @@ var temp = function ($) {
                 })
             );
         });
-
-        /*test('', function() {
-            var json = undefined;
-            var team = new Team(json);
-            team
-                .bindTo('#teams-list')
-                .render("<div id='#{id}'>#{name}</div>")
-                .click(function() {
-                    this.push();
-                });
-            var foo = {
-                name: 'foo-ish',
-                age : 29,
-                speak: function() {
-                    alert("hello from #{name}: age of #{age}".interpolate(this));
-                }
-            };
-
-        });*/
-
-        /*
-        module('Example tests');
-        test('Real Click vs False Click', function(){
-            var clicked = false;
-            $('#test-form').click(function(){
-                    clicked = true;
-            });
-
-            //false click
-            $('#test-form input').click();
-            ok(!clicked);
-
-            //real click
-            triggerEvent($('#test-form input').get(0), 'click');
-            ok(clicked);
+        
+        /********************************************************************************************************
+         *      Repository Unit Tests
+         ********************************************************************************************************/
+        
+        module('Repository Unit Tests');
+        
+        test('registration should result in a web facade pointing to the specified base uri', function() {
+            var repo = new Repository();
+            
+            var baseuri = '/path/to/test/resource';
+            repo.register(TestResource, baseuri);
+            var service = repo.getService(TestResource);
+            jqMock.assertThat(service, is.instanceOf(WebFacade));
+            equals(service.uri, baseuri);
         });
-
-        test('Waiting', function(){
-            $('#ajax').load('fixtures/1.html');
-            expect(1);//expect 1 assertion, here: fails if ajaxStop is never called
-            stop();//pause: so we can wait with setTimeout,setInterval,...
-            $().ajaxStop(function(){
-                    setTimeout(function(){
-                            //field is not filled directly after ajaxStop
-                            //since DOM traversal comes after stopping to load
-                            equals($('#ajax').html(), 1);//!reverted jsUnit order
-                            start();//resume: make sure its called or tests will halt!
-                    })
-            });
+        
+        test('find should return cached data before making HTTP calls', function() {
+            var mock_ajax = new jqMock.Mock(jQuery, 'ajax');
+            mock_ajax.modify()
+                .args(is.anything)
+                .multiplicity(1)
+                .returnValue([{ name: 'foo' }]);
+            
+            var repo = new Repository();
+            repo.register(TestResource, 'no/such/resource');
+            
+            var found = repo.find(TestResource, { name: 'foo' });
+            equals(found.size(), 1, 'list of items should be of length 1');
+            equals(found[0].name, 'foo', 'found item should have the correct name');
         });
-        */
+        
     }
 }(jQuery);

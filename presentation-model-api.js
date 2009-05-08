@@ -218,7 +218,7 @@ var WebFacade = Class.create2(EventSink, {
     },
     PUT: function(options) {
         var result = undefined;
-  var self = this;
+        var self = this;
         var opts = new Hash(
             defaults(this.ajax_options('PUT', false, {
                 success: function(data) {
@@ -258,6 +258,30 @@ var WebFacade = Class.create2(EventSink, {
             }
         }
         return opts;
+    }
+});
+
+var Repository = Class.create(EventSink, {
+    initialize: function() {
+        this._resources = new Hash();
+        this._caches = new Hash();
+    },
+    register: function(resource_type, baseuri) {
+        this._resources.set(resource_type, new WebFacade(baseuri, resource_type));
+    },
+    getService: function(resource_type) {
+        return this._resources.get(resource_type);
+    },
+    cache_for: function(resource_type) {
+        return this._caches.get(resource_type) || this._caches.set(resource_type, []);
+    },
+    find: function(resource_type, criterion) {
+        var cache = this.cache_for(resource_type);
+        var found = cache.select(function(e) {
+            for (key in criterion) if (e[key] != criterion[key]) return false;
+            return true;
+        });
+        return [];
     }
 });
 
@@ -393,6 +417,7 @@ var RenderStrategy = Class.create(EventSink, {
                 }, this.require_template('field_template', scope_name)));
             }
             var container = jQuery('<div/>');
+            // TODO: support control over the injection process (e.g., prepend, wrap, etc)
             jQuery(results).appendTo(container);
             return jQuery(template.evaluate({ $items: container.html(), $object: this.object }));
         }
@@ -445,6 +470,7 @@ var RenderStrategy = Class.create(EventSink, {
         if (content.empty()) {
             return container
         } else {
+            // TODO: support control over the injection process (e.g., prepend, wrap, etc)
             jQuery(content).appendTo(containment_output);
             return containment_output;
         }
