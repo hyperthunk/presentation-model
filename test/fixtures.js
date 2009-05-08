@@ -401,8 +401,8 @@ var temp = function ($) {
         test('binding context should support attributes for each field', function() {
             var subject = new TestResource({ id: 'id', name: 'foo', occupation: 'bar' });
             var bindings = new BindingContext(subject);
-            equals(bindings.name.selector, '#id > .name');
-            equals(bindings.occupation.selector, '#id > .occupation');
+            equals(bindings.name.selector, '#id .name');
+            equals(bindings.occupation.selector, '#id .occupation');
             equals(bindings.name.container, bindings);
             equals(bindings.occupation.container, bindings);
         });
@@ -421,13 +421,13 @@ var temp = function ($) {
                 }
             });
             var bindings = new BindingContext(subject);
-            equals(bindings.complex.name.selector, '#id > .complex > .name');
-            equals(bindings.complex.links.two.selector, '#id > .complex > .links > .two');
+            equals(bindings.complex.name.selector, '#id .complex .name');
+            equals(bindings.complex.links.two.selector, '#id .complex .links .two');
         });
 
         test('binding context should return jQuery object given the correct selector', function() {
             var mockJQ = new jqMock.Mock(window, 'jQuery');
-            var expected_selector = '#id > .transport';
+            var expected_selector = '#id .transport';
             try {
                 mockJQ.modify().args(expected_selector).multiplicity(1);
                 var subject = new TestResource({ id: 'id', transport: 'air' });
@@ -475,7 +475,7 @@ var temp = function ($) {
             var mockJQ = new jqMock.Mock(window, 'jQuery');
             try {
                 mockJQ.modify()
-                    .args('#id > .complex > .name')
+                    .args('#id .complex .name')
                     .returnValue(retval);
                 var subject = new TestResource({
                     id: 'id',
@@ -500,9 +500,9 @@ var temp = function ($) {
             var div = jQuery.extend([{ tagName: 'DIV' }], { text: function(){ return 'updated'; } });
             var mockJQ = new jqMock.Mock(window, 'jQuery');
             try {
-                mockJQ.modify().args('#id > .name').returnValue(div);
-                mockJQ.modify().args('#id > .options > .speed').returnValue(input);
-                mockJQ.modify().args('#id > .options > .strength').returnValue(option);
+                mockJQ.modify().args('#id .name').returnValue(div);
+                mockJQ.modify().args('#id .options .speed').returnValue(input);
+                mockJQ.modify().args('#id .options .strength').returnValue(option);
 
                 var subject = new TestResource({
                     id: 'id',
@@ -523,7 +523,29 @@ var temp = function ($) {
                 mockJQ.restore();
             }
         });
-
+        
+        test('binding context should update values correctly when complex DOM structures are rendered', function() {
+            $('<div id="earthsea"/>').appendTo('#sandbox');
+            var subject = new TestResource({
+                id: 'baz',
+                uri: 'magic/inventory/',
+                wizard: 'Gandalf'
+            }).display('wizard');
+            
+            subject.renderAs({
+                templates: {
+                    container_template: '<form method="POST" action="#{$object.uri}"><div class="mr_wibble"><div class="wizard"/></div></form>',
+                    field_template:     '<div><label>#{$field.name}</label>' +
+                                            '<input class="#{$field.name}" type="text" value="#{$field.value}"/>' +
+                                        '</div>'
+                }
+            }).appendTo('#earthsea');
+            
+            equals(subject.bindings().wizard.ui()[0].tagName.toLowerCase(), 'input');
+        });
+        
+        //TODO: another test case for this collision detection is needed!
+        
         test('binding context should refresh the ui with the current context value', function() {
             var subject = new TestResource({ id: 'foo', name: 'Anton' });
             var bindings = subject.bindings();
@@ -537,7 +559,7 @@ var temp = function ($) {
             bindings.refresh();
             equals(bindings.name.ui().text(), 'freddy');
         });
-
+        
         test('bindings should return the binding context', function() {
             jqMock.assertThat(new TestResource().bindings(), is.instanceOf(BindingContext));
         });

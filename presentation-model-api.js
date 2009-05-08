@@ -423,13 +423,6 @@ var RenderStrategy = Class.create(EventSink, {
                 field = self.perform_rendering(value,
                                                    self.require_template('multi_field_template', scope_name), new_scope);
                 //TODO: this feels like a bit of a hack - some refactoring is needed to make it smell less
-                /*field = jQuery(self.require_template('field_template').evaluate({
-                    $field: {
-                        name: binding, value: ''
-                    },
-                    $object: self.object
-                }));
-                items.appendTo(field);*/
             } else if (Object.isObject(value)) {
                 field = self.perform_rendering(
                     value, self.require_template('complex_field_template', scope_name), new_scope);
@@ -442,7 +435,8 @@ var RenderStrategy = Class.create(EventSink, {
                     $object: context
                 }, field_templates.get(binding));
             }
-            if (!field.hasClass(binding)) {
+            var binding_class = self.binding_class(field, scope_name);
+            if (binding_class.length == 0) {
                 field.addClass(binding);
             }
             acc.push(field);
@@ -461,6 +455,9 @@ var RenderStrategy = Class.create(EventSink, {
     },
     render_object: function(context, template) {
         return jQuery(template.evaluate(context));
+    },
+    binding_class: function(field, binding) {
+        return field.find('.' + binding);
     }
 });
 
@@ -519,10 +516,33 @@ var BindingContext = Class.create({
             naming_container = naming_container.container;
         }
         //TODO: explode if there's no selectable attribtues for a jQuery selector expression to use
-        this.selector = '#' + selector.reverse().join(' > .');
+        
+        //TODO: wrap each element with :first(.<classname>) instead 
+        this.selector = '#' + selector.reverse().join(' .');
     },
     ui: function() {
-        return jQuery(this.selector);
+        var rs = jQuery(this.selector);
+        if (rs.length > 1) {
+            var hint = undefined, comparator = undefined;
+            var hints = this.selector.split(' ');
+            var scope = undefined;
+            return jQuery($A(rs).detect(function(e) {
+                scope = jQuery(e);
+                while (!hints.empty()) {
+                    hint = hints.pop()
+                    comparator = hint.startsWith('#')
+                        ? function(val) { return this.attr('id') == val; }
+                        : scope.hasClass;
+                    if (!comparator.call(scope, hint.slice(1))) {
+                        return false;
+                    }
+                    scope = scope.parent();
+                    if (scope.length == 0) return false;
+                }
+                return true;
+            }));
+        }
+        return rs;
     },
     update: function() {
         // TODO: deal with composite bound objects
