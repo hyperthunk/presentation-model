@@ -523,7 +523,7 @@ var temp = function ($) {
                 mockJQ.restore();
             }
         });
-        
+
         test('binding context should update values correctly when complex DOM structures are rendered', function() {
             $('<div id="earthsea"/>').appendTo('#sandbox');
             var subject = new TestResource({
@@ -531,7 +531,7 @@ var temp = function ($) {
                 uri: 'magic/inventory/',
                 wizard: 'Gandalf'
             }).display('wizard');
-            
+
             subject.renderAs({
                 templates: {
                     container_template: '<form method="POST" action="#{$object.uri}">' +
@@ -542,10 +542,10 @@ var temp = function ($) {
                                         '</div>'
                 }
             }).appendTo('#earthsea');
-            
+
             equals(subject.bindings().wizard.ui()[0].tagName.toLowerCase(), 'input');
         });
-        
+
         test('binding context should refresh the ui with the current context value', function() {
             var subject = new TestResource({ id: 'foo', name: 'Anton' });
             var bindings = subject.bindings();
@@ -559,7 +559,7 @@ var temp = function ($) {
             bindings.refresh();
             equals(bindings.name.ui().text(), 'freddy');
         });
-        
+
         test('bindings should return the binding context', function() {
             jqMock.assertThat(new TestResource().bindings(), is.instanceOf(BindingContext));
         });
@@ -760,37 +760,86 @@ var temp = function ($) {
                 })
             );
         });
-        
+
         /********************************************************************************************************
          *      Repository Unit Tests
          ********************************************************************************************************/
-        
+
         module('Repository Unit Tests');
-        
+
         test('registration should result in a web facade pointing to the specified base uri', function() {
             var repo = new Repository();
-            
+
             var baseuri = '/path/to/test/resource';
             repo.register(TestResource, baseuri);
             var service = repo.getService(TestResource);
             jqMock.assertThat(service, is.instanceOf(WebFacade));
             equals(service.uri, baseuri);
         });
-        
+
+        // TODO: reconsider this test.....
         test('find should return cached data before making HTTP calls', function() {
             var mock_ajax = new jqMock.Mock(jQuery, 'ajax');
             mock_ajax.modify()
                 .args(is.anything)
                 .multiplicity(1)
                 .returnValue([{ name: 'foo' }]);
-            
+
             var repo = new Repository();
             repo.register(TestResource, 'no/such/resource');
-            
+
             var found = repo.find(TestResource, { name: 'foo' });
             equals(found.size(), 1, 'list of items should be of length 1');
             equals(found[0].name, 'foo', 'found item should have the correct name');
         });
-        
+
+        test('turning caching off should always hit the server', function() {
+            var mock_ajax = new jqMock.Mock(jQuery, 'ajax');
+            mock_ajax.setOrdered(true);
+            mock_ajax.modify()
+                .args(is.anything)
+                .multiplicity(1)
+                .returnValue([{ name: 'tim' }, { name: 'bob' }]);
+            mock_ajax.modify()
+                .args(is.anything)
+                .multiplicity(1)
+                .returnValue([{ name: 'tim' }]);
+
+            var repo = new Repository();
+            repo.register(TestResource, 'some/path/on/server');
+            var service = repo.resource_manager(TestResource);
+            service.cache.enabled = false;
+
+            var list = service.fetch();
+            equals(list.size(), 2);
+            equals(list[0].name, 'tim');
+            list.clear();
+
+            ok(service.cache._resources.size() == 2);
+            service.find({ name: 'tim' }, list);
+            equals(list.size(), 1);
+            equals(list[0].name, 'tim');
+        });
+
+        test('turning caching on should still hit the server if expecting multiple resource in the response', function() {
+            ok(false);
+        });
+
+        test('find should still hit the server if expecting a single resource which is not already cached', function() {
+            ok(false);
+        });
+
+        test('find should perform a conditional get is the requested resource is already cached', function() {
+            ok(false);
+        });
+
+        test('with conditional get disabled, find should still hit the server even when resources are cached', function() {
+            ok(false);
+        });
+
+        test('fetching...', function() {
+            ok(false);
+        });
+
     }
 }(jQuery);

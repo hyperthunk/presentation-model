@@ -274,18 +274,35 @@ var Repository = Class.create(EventSink, {
     register: function(resource_type, baseuri) {
         this._resources.set(resource_type, new WebFacade(baseuri, resource_type));
     },
-    getService: function(resource_type) {
+    service_for: function(resource_type) {
         return this._resources.get(resource_type);
     },
     cache_for: function(resource_type) {
         return this._caches.get(resource_type) || this._caches.set(resource_type, []);
     },
-    find: function(resource_type, criterion) {
+    find: function() {
+        find(TestResource, {
+                ein: 602382443,
+                name: 'Tim*'
+            }
+        );
+        find(TestResource, { ein: 602382443 }, [], true);
+
+        var finder = finder_for(TestResource, true);
+        finder.find({
+            ein:    602382443,
+            name:   'Tim*'
+        });
+    },
+    finder_for: function(resource_type, connected) {
         var cache = this.cache_for(resource_type);
-        var found = cache.select(function(e) {
+        var predicate = function(e) {
             for (key in criterion) if (e[key] != criterion[key]) return false;
             return true;
-        });
+        };
+        if (Object.isUndefined(results)) {
+            return cache.detect(predicate);
+        }
         return [];
     }
 });
@@ -323,14 +340,7 @@ var RenderStrategy = Class.create(EventSink, {
     gen_container_template: function(literal) {
         return {
             evaluate: function(data) {
-                var jq = jQuery(literal)
-                /*if (data.$object && data.$object.id) {
-                    //TODO: use gen_id instead....
-                    var id_field = data.$object.id;
-                    var id = (Object.isFunction(id_field)) ? id_field.call(data.$object) : id_field;
-                    jq.attr('id', id);
-                }*/
-                return jq;
+                return jQuery(literal);
             }
         };
     },
@@ -452,7 +462,6 @@ var RenderStrategy = Class.create(EventSink, {
             if (!self.inline_array_fields && Object.isArray(value)) {
                 field = self.perform_rendering(value,
                                                    self.require_template('multi_field_template', scope_name), new_scope);
-                //TODO: this feels like a bit of a hack - some refactoring is needed to make it smell less
             } else if (Object.isObject(value)) {
                 field = self.perform_rendering(
                     value, self.require_template('complex_field_template', scope_name), new_scope);
