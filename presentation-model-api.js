@@ -200,18 +200,13 @@ var WebFacade = Class.create2(EventSink, {
     GET: function(options) {
         var result = undefined;
         var self = this;
-        var opts = new Hash(
-            defaults(this.ajax_options('GET', false, {
-                success: function(data) {
-                    data = data || [];
-                    data['__x_created_locally'] = false;
-                    result = self.create(data);
-                }
-            }), default_value(options, {}))
-        );
-        this.set_path(opts);
-        var xhr = jQuery.ajax(opts.toObject());
-        if (opts.async == true) {
+        var xhr = this.execute('GET', options,
+            function(data) {
+                data = data || [];
+                data['__x_created_locally'] = false;
+                result = self.create(data);
+            });
+        if ((options || {}).async == true) {
             return xhr;
         }
         return result;
@@ -219,19 +214,29 @@ var WebFacade = Class.create2(EventSink, {
     PUT: function(options) {
         var result = undefined;
         var self = this;
-        var opts = new Hash(
-            defaults(this.ajax_options('PUT', false, {
-                success: function(data) {
-                    result = self.create(data);
-                }
-            }), default_value(options, {}))
-        );
-        this.set_path(opts);
-        var xhr = jQuery.ajax(opts.toObject());
-        if (opts.async == true) {
+        var xhr = this.execute('PUT', options,
+                               function(data) { result = self.create(data); });
+        if (options.async == true) {
             return xhr;
         }
         return result;
+    },
+    DELETE: function(options) {
+        var result = undefined;
+        var xhr = this.execute('DELETE', options, function(data) { result = data; });
+        if (options.async == true) {
+            return xhr;
+        }
+        return result;
+    },
+    execute: function(verb, options, on_success) {
+        var opts = new Hash(
+            defaults(this.ajax_options(verb, false, {
+                success: on_success
+            }), default_value(options, {}))
+        );
+        this.set_path(opts);
+        return jQuery.ajax(opts.toObject());
     },
     set_path: function(opts) {
         var path = opts.get('path');
@@ -542,8 +547,8 @@ var BindingContext = Class.create({
             naming_container = naming_container.container;
         }
         //TODO: explode if there's no selectable attribtues for a jQuery selector expression to use
-        
-        //TODO: wrap each element with :first(.<classname>) instead 
+
+        //TODO: wrap each element with :first(.<classname>) instead
         this.selector = '#' + selector.reverse().join(' .');
     },
     ui: function() {
