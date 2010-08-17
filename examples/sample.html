@@ -1,0 +1,54 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+    "http://www.w3.org/TR/html4/strict.dtd"
+    >
+<html>
+<head>
+    <title>Server List</title>
+    <link type="text/css" href="assets/redmond/jquery-ui-1.8.2.custom.css" rel="Stylesheet"/>
+    <link type="text/css" href="assets/css/default.css" rel="Stylesheet"/>
+    <script type="text/javascript" src="assets/js/jquery-1.4.2.min.js"></script>
+    <script type="text/javascript" src="assets/js/jquery-ui-1.8.2.custom.min.js"></script>
+    <script type="text/javascript" src="assets/js/sarissa-compressed.js"></script>
+    <script type="text/javascript" src="assets/js/jquery.xslTransform.js"></script>
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            uiBinding();
+        });
+
+        function getBaseUrl() {
+            return window.location.protocol + '//' + window.location.host + '/deployments/service/';
+        }
+
+        function getParams() {
+            var hashs = document.location.hash.substring(1).split(',');
+            var params = [];
+
+            for (var i = 0; i < hashs.length; i++) {
+                var item = hashs[i].split('=');
+                params[item[0]] = item[1];
+            }
+        }
+
+        function uiBinding() {
+            $('#loading').dialog();
+            var id = document.location.hash.substring(1);
+            id = id.replace(/\./g, '__');
+            transformUrl('#content', 'assets/views/app.xsl', 'service/servers/' + id, function() {
+                $('#loading').dialog('close');
+            });
+        }
+    </script>
+</head>
+<body>
+
+<div id="content">
+
+</div>
+
+<div id="loading" title="Please wait...">
+    <img src="images/my_logo.gif" alt="Loading..."/>
+</div>
+
+</body>
+</html>
